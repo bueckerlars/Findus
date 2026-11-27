@@ -274,16 +274,27 @@ func (r *ItemRepo) UpdateSearchLocationForItemsAtLocation(ctx context.Context, l
 		return err
 	}
 	defer rows.Close()
+	var ids []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			return err
 		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	// The pool has a single connection: querying while rows is open would deadlock.
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, id := range ids {
 		if err := r.upsertSubstrFTS(ctx, id); err != nil {
 			return err
 		}
 	}
-	return rows.Err()
+	return nil
 }
 
 func placeholders(n int) (string, []any) {
