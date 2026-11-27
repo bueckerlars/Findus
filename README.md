@@ -38,6 +38,7 @@ Scan a QR code on any box and land directly on its page. No SaaS, no subscriptio
 - **Photos** — Attach images to locations and items; Findus auto-converts and compresses to WebP.
 - **QR codes** — Every location and item gets a scannable code. Scanning redirects straight to its page using your configured base URL.
 - **Full-text search** — Find anything by name, description, or custom field value (FTS5-powered, with a LIKE fallback).
+- **AI access via MCP** — Connect an LLM agent to search and manage your inventory, with per-user permission toggles ([setup](docs/mcp.md)).
 - **Command palette** — Keyboard-driven search overlay for quick navigation.
 - **Role-based access** — First registered user becomes admin. Admins manage users, templates, labels, and settings; regular users browse and edit inventory.
 - **Registration modes** — Open, invite-only, or admin-only: you control who can sign up.

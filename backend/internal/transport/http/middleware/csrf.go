@@ -76,7 +76,8 @@ func shouldSkipCSRF(r *http.Request) bool {
 	if strings.HasPrefix(r.URL.Path, "/static/") || strings.HasPrefix(r.URL.Path, "/assets/") {
 		return true
 	}
-	if r.URL.Path == "/healthz" {
+	// /mcp authenticates only with a bearer token and ignores cookies, so CSRF does not apply.
+	if r.URL.Path == "/healthz" || r.URL.Path == "/mcp" {
 		return true
 	}
 	return false
