@@ -19,12 +19,10 @@ type LabelPDFGenerator struct {
 }
 
 type LabelPDFInput struct {
-	From     int64
-	To       int64
-	Policy   domain.ItemIDPolicy
-	Cols     int  // 0 = default (2)
-	Rows     int  // 0 = auto-fit rows for A4
-	FullPage bool // use entire A4 with no margins
+	From   int64
+	To     int64
+	Policy domain.ItemIDPolicy
+	Sheet  LabelSheetLayout
 }
 
 type LabelPDFOutput struct {
@@ -47,6 +45,11 @@ func (g *LabelPDFGenerator) Generate(ctx context.Context, in LabelPDFInput) (Lab
 	count := in.To - in.From + 1
 	if count > limit {
 		return LabelPDFOutput{}, fmt.Errorf("%w: range too large (max %d)", domain.ErrValidation, limit)
+	}
+
+	layout, err := computeLabelLayout(in.Sheet)
+	if err != nil {
+		return LabelPDFOutput{}, err
 	}
 
 	tmpDir, err := os.MkdirTemp("", "findus-label-pdf-*")
@@ -73,7 +76,6 @@ func (g *LabelPDFGenerator) Generate(ctx context.Context, in LabelPDFInput) (Lab
 		contents = append(contents, labelContent{QRPath: qrPath, PrimaryText: itemID})
 	}
 
-	layout := computeLabelLayout(in.Cols, in.Rows, in.FullPage)
 	pdfBytes, err := renderLabelsPDF(contents, layout)
 	if err != nil {
 		return LabelPDFOutput{}, err

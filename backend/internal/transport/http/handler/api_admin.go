@@ -240,11 +240,9 @@ func (s *Server) APIAdminSettingsItemIDsPost(w http.ResponseWriter, r *http.Requ
 }
 
 type apiAdminLabelGenerateReq struct {
-	From     float64 `json:"from"`
-	To       float64 `json:"to"`
-	Cols     int     `json:"cols"`
-	Rows     int     `json:"rows"`
-	FullPage bool    `json:"full_page"`
+	From float64 `json:"from"`
+	To   float64 `json:"to"`
+	service.LabelSheetLayout
 }
 
 func (s *Server) APIAdminLabelsGenerate(w http.ResponseWriter, r *http.Request) {
@@ -269,12 +267,10 @@ func (s *Server) APIAdminLabelsGenerate(w http.ResponseWriter, r *http.Request) 
 		Reservations: s.ItemQRTokens,
 	}
 	out, err := gen.Generate(ctx, service.LabelPDFInput{
-		From:     int64(req.From),
-		To:       int64(req.To),
-		Policy:   pol,
-		Cols:     req.Cols,
-		Rows:     req.Rows,
-		FullPage: req.FullPage,
+		From:   int64(req.From),
+		To:     int64(req.To),
+		Policy: pol,
+		Sheet:  req.LabelSheetLayout,
 	})
 	if err != nil {
 		s.writeJSONError(w, http.StatusBadRequest, err.Error())
@@ -285,9 +281,7 @@ func (s *Server) APIAdminLabelsGenerate(w http.ResponseWriter, r *http.Request) 
 
 type apiAdminLocationLabelGenerateReq struct {
 	LocationIDs []string `json:"location_ids"`
-	Cols        int      `json:"cols"`
-	Rows        int      `json:"rows"`
-	FullPage    bool     `json:"full_page"`
+	service.LabelSheetLayout
 }
 
 func (s *Server) APIAdminLocationLabelsGenerate(w http.ResponseWriter, r *http.Request) {
@@ -307,9 +301,7 @@ func (s *Server) APIAdminLocationLabelsGenerate(w http.ResponseWriter, r *http.R
 	}
 	out, err := gen.Generate(ctx, service.LocationLabelPDFInput{
 		LocationIDs: req.LocationIDs,
-		Cols:        req.Cols,
-		Rows:        req.Rows,
-		FullPage:    req.FullPage,
+		Sheet:       req.LabelSheetLayout,
 	})
 	if err != nil {
 		s.writeJSONError(w, http.StatusBadRequest, err.Error())

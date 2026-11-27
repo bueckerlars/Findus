@@ -367,9 +367,12 @@
     "layoutTitle": "Seitenlayout",
     "cols": "Spalten",
     "rows": "Zeilen",
-    "rowsHint": "(0 = automatisch)",
-    "fullPage": "Volle Seite (ohne Rand)",
-    "fullPageHint": "Nutzt die gesamte A4-Seite; Labels werden gleichmäßig in die konfigurierte Anzahl Spalten und Zeilen geteilt.",
+    "margin_top": "Rand oben (mm)",
+    "margin_right": "Rand rechts (mm)",
+    "margin_bottom": "Rand unten (mm)",
+    "margin_left": "Rand links (mm)",
+    "hideBorder": "Rahmen ausblenden",
+    "layoutHint": "Ränder eines A4-Bogens; die Fläche dazwischen wird gleichmäßig in Spalten und Zeilen geteilt. Beim Drucken „Tatsächliche Größe“ (100 %) wählen.",
     "itemTitle": "Artikel-Labels"
   },
   "adminTemplates": {

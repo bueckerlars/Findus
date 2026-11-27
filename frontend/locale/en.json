@@ -367,9 +367,12 @@
     "layoutTitle": "Page layout",
     "cols": "Columns",
     "rows": "Rows",
-    "rowsHint": "(0 = auto)",
-    "fullPage": "Full page (no margins)",
-    "fullPageHint": "Uses the entire A4 page; labels are divided evenly into the configured columns and rows.",
+    "margin_top": "Top margin (mm)",
+    "margin_right": "Right margin (mm)",
+    "margin_bottom": "Bottom margin (mm)",
+    "margin_left": "Left margin (mm)",
+    "hideBorder": "Hide label borders",
+    "layoutHint": "Margins of an A4 sheet; the area between them is split evenly into columns and rows. Print at “actual size” (100%).",
     "itemTitle": "Item labels"
   },
   "adminLocationLabelGenerator": {
