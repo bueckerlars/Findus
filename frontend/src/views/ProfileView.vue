@@ -15,6 +15,7 @@ import {
 } from "../locale/constants";
 import { usernameInitial } from "../utils/initial";
 import FxSvg from "../components/FxSvg.vue";
+import McpSettings from "../components/McpSettings.vue";
 import FxToggle from "../components/primitives/FxToggle.vue";
 import FxAlert from "../components/primitives/FxAlert.vue";
 import FxSkeleton from "../components/primitives/FxSkeleton.vue";
@@ -449,5 +450,7 @@ async function save() {
         </button>
       </div>
     </form>
+
+    <McpSettings />
   </div>
 </template>

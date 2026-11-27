@@ -37,6 +37,7 @@ type Server struct {
 	Templates    *sqlite.ItemTemplateRepo
 	Invites      *sqlite.InviteRepo
 	Settings     *sqlite.SettingsRepo
+	MCP          *sqlite.MCPRepo
 
 	Auth      *service.Auth
 	Admin     *service.Admin

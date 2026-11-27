@@ -802,5 +802,38 @@
     "ctx_profile_email_k": "mail address",
     "ctx_profile_avatar_l": "Choose avatar image",
     "ctx_profile_avatar_k": "photo picture upload image"
+  },
+  "mcp": {
+    "title": "AI access (MCP)",
+    "help": "Connect an LLM agent to your inventory and choose exactly what it may do.",
+    "endpoint": "MCP endpoint",
+    "generate": "Create access token",
+    "regenerate": "New token",
+    "revoke": "Disable MCP access",
+    "tokenOnce": "Copy this token now. It is shown only once.",
+    "copyToken": "Copy token",
+    "copyCommand": "Copy Claude Code command",
+    "copied": "Copied.",
+    "copyFailed": "Could not copy. Select the text and copy it manually.",
+    "tokenCreated": "New token created.",
+    "revoked": "MCP access disabled.",
+    "saved": "MCP permissions saved.",
+    "confirmRegenerate": "Create a new token? The current token stops working immediately.",
+    "confirmRevoke": "Disable MCP access? Connected agents lose access immediately.",
+    "permissionsHelp": "Changes apply immediately. Greyed-out toggles are not covered by your account permissions. Search is part of reading items and also matches label and location names.",
+    "resource": "Data",
+    "actions": {
+      "read": "Read",
+      "create": "Create",
+      "update": "Edit",
+      "delete": "Delete"
+    },
+    "resources": {
+      "items": "Items",
+      "locations": "Locations",
+      "labels": "Labels",
+      "templates": "Templates",
+      "attachments": "Attachments"
+    }
   }
 }

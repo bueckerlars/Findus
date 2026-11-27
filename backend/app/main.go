@@ -80,6 +80,7 @@ func main() {
 		Templates:    templates,
 		Invites:      invites,
 		Settings:     settings,
+		MCP:          sqlite.NewMCPRepo(db),
 		Auth:         authSvc,
 		Admin:        adminSvc,
 		Inventory:    invSvc,

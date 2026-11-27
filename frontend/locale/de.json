@@ -790,5 +790,38 @@
     "ctx_profile_email_k": "mail adresse",
     "ctx_profile_avatar_l": "Avatarbild wählen",
     "ctx_profile_avatar_k": "foto bild hochladen"
+  },
+  "mcp": {
+    "title": "KI-Zugriff (MCP)",
+    "help": "Verbinde einen LLM-Agenten mit deinem Inventar und lege genau fest, was er darf.",
+    "endpoint": "MCP-Endpunkt",
+    "generate": "Zugriffstoken erstellen",
+    "regenerate": "Neues Token",
+    "revoke": "MCP-Zugriff deaktivieren",
+    "tokenOnce": "Kopiere das Token jetzt. Es wird nur einmal angezeigt.",
+    "copyToken": "Token kopieren",
+    "copyCommand": "Claude-Code-Befehl kopieren",
+    "copied": "Kopiert.",
+    "copyFailed": "Kopieren nicht möglich. Markiere den Text und kopiere ihn manuell.",
+    "tokenCreated": "Neues Token erstellt.",
+    "revoked": "MCP-Zugriff deaktiviert.",
+    "saved": "MCP-Berechtigungen gespeichert.",
+    "confirmRegenerate": "Neues Token erstellen? Das aktuelle Token funktioniert sofort nicht mehr.",
+    "confirmRevoke": "MCP-Zugriff deaktivieren? Verbundene Agenten verlieren sofort den Zugriff.",
+    "permissionsHelp": "Änderungen gelten sofort. Ausgegraute Schalter deckt dein Konto nicht ab. Die Suche gehört zum Lesen von Artikeln und findet auch Label- und Standortnamen.",
+    "resource": "Daten",
+    "actions": {
+      "read": "Lesen",
+      "create": "Anlegen",
+      "update": "Ändern",
+      "delete": "Löschen"
+    },
+    "resources": {
+      "items": "Artikel",
+      "locations": "Standorte",
+      "labels": "Labels",
+      "templates": "Vorlagen",
+      "attachments": "Anhänge"
+    }
   }
 }

@@ -306,17 +306,24 @@ func (s *Server) APIItemUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) APIItemDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	id := r.PathValue("id")
+	if err := s.deleteItem(ctx, r.PathValue("id")); err != nil {
+		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/items"})
+}
+
+// deleteItem removes the item row together with its photo and attachment files.
+func (s *Server) deleteItem(ctx context.Context, id string) error {
 	it, err := s.Items.GetByID(ctx, id)
 	if err == nil && it.PhotoPath != nil {
 		_ = os.Remove(filepath.Join(s.Config.DataDir, filepath.FromSlash(*it.PhotoPath)))
 	}
 	if err := s.Inventory.DeleteItem(ctx, id); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
-		return
+		return err
 	}
 	_ = service.RemoveItemAttachmentDir(s.Config.DataDir, id)
-	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/items"})
+	return nil
 }
 
 func (s *Server) APISearch(w http.ResponseWriter, r *http.Request) {

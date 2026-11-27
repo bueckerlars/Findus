@@ -117,6 +117,18 @@ All routes below require a valid session cookie. The Vue app calls these with `f
 
 ---
 
+## MCP
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/mcp` | MCP endpoint (Streamable HTTP) — bearer token only, no session or CSRF (see [MCP](mcp.md)) |
+| `GET` | `/api/mcp` | Current user's MCP settings (session) |
+| `POST` | `/api/mcp/token` | Create or replace the token — returned once |
+| `POST` | `/api/mcp/scopes` | JSON body `{scopes}` — set the permission toggles |
+| `POST` | `/api/mcp/revoke` | Delete the token and toggles |
+
+---
+
 ## Error responses
 
 All JSON endpoints return errors in the form:

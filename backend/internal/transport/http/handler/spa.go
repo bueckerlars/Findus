@@ -53,6 +53,11 @@ func (s *Server) MountAPI(mux *http.ServeMux) {
 	mux.Handle("POST /api/profile", middleware.RequireAuth(http.HandlerFunc(s.APIProfilePost)))
 	mux.Handle("PATCH /api/profile/theme", middleware.RequireAuth(http.HandlerFunc(s.APIProfileThemePatch)))
 
+	mux.Handle("GET /api/mcp", middleware.RequireAuth(http.HandlerFunc(s.APIMCPGet)))
+	mux.Handle("POST /api/mcp/token", middleware.RequireAuth(http.HandlerFunc(s.APIMCPTokenCreate)))
+	mux.Handle("POST /api/mcp/scopes", middleware.RequireAuth(http.HandlerFunc(s.APIMCPScopesSet)))
+	mux.Handle("POST /api/mcp/revoke", middleware.RequireAuth(http.HandlerFunc(s.APIMCPRevoke)))
+
 	mux.Handle("GET /api/locations", middleware.RequireAuth(http.HandlerFunc(s.APILocationsList)))
 	mux.Handle("GET /api/locations/new", middleware.RequireAuth(middleware.RequirePermission(domain.PermLocationsWrite)(http.HandlerFunc(s.APILocationNew))))
 	mux.Handle("POST /api/locations", middleware.RequireAuth(middleware.RequirePermission(domain.PermLocationsWrite)(http.HandlerFunc(s.APILocationCreate))))
@@ -122,6 +127,13 @@ func (s *Server) Handler() (http.Handler, error) {
 	s.MountAPI(mux)
 
 	mux.HandleFunc("GET /q/{token}", s.QRedirect)
+
+	mux.HandleFunc("POST /mcp", s.MCPHandle)
+	// Stateless server: no SSE stream. Without this, GET /mcp would fall through to the SPA.
+	mux.HandleFunc("GET /mcp", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
 
 	auth := func(h http.HandlerFunc) http.Handler { return middleware.RequireAuth(h) }
 	admin := func(h http.HandlerFunc) http.Handler {
