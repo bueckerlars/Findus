@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { api, csrfToken } from "../api";
 import { useI18n } from "vue-i18n";
 import { toast } from "../composables/useToast";
@@ -11,9 +11,28 @@ import LocationSelectorRow from "../components/LocationSelectorRow.vue";
 const { t } = useI18n();
 
 // --- Shared layout config ---
-const cols = ref(2);
-const rows = ref(0); // 0 = auto
-const fullPage = ref(false);
+const sheet = reactive({
+  cols: 2,
+  rows: 7,
+  margin_top: 10,
+  margin_right: 10,
+  margin_bottom: 10,
+  margin_left: 10,
+  hide_border: false,
+});
+const marginSides = ["top", "right", "bottom", "left"] as const;
+// A cleared number input yields "", which the API cannot decode.
+const sheetValid = computed(
+  () =>
+    Number.isInteger(sheet.cols) &&
+    Number.isInteger(sheet.rows) &&
+    sheet.cols >= 1 &&
+    sheet.rows >= 1 &&
+    marginSides.every((side) => {
+      const v = sheet[`margin_${side}`];
+      return Number.isFinite(v) && v >= 0;
+    }),
+);
 
 // --- Item label generator ---
 const from = ref(1);
@@ -66,9 +85,7 @@ async function generateItems() {
       body: JSON.stringify({
         from: from.value,
         to: to.value,
-        cols: cols.value,
-        rows: rows.value,
-        full_page: fullPage.value,
+        ...sheet,
       }),
     });
     if (!res.ok) {
@@ -173,9 +190,7 @@ async function generateLocations() {
       headers,
       body: JSON.stringify({
         location_ids: [...locSelected.value],
-        cols: cols.value,
-        rows: rows.value,
-        full_page: fullPage.value,
+        ...sheet,
       }),
     });
     if (!res.ok) {
@@ -223,28 +238,29 @@ function triggerDownload(url: string, name: string) {
     <!-- Shared layout config -->
     <section class="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
       <h2 class="mb-4 text-center text-sm font-semibold text-zinc-700">{{ $t("adminLabelGenerator.layoutTitle") }}</h2>
-      <div class="mx-auto grid max-w-xl grid-cols-1 items-end justify-items-center gap-6 sm:grid-cols-3 sm:gap-x-10">
-        <label class="flex w-full max-w-[7rem] flex-col items-center gap-1.5 text-sm text-zinc-700">
+      <div class="mx-auto grid max-w-xl grid-cols-2 gap-4 sm:grid-cols-4">
+        <label class="col-span-1 flex flex-col items-center gap-1.5 text-sm text-zinc-700 sm:col-span-2">
           <span class="font-medium">{{ $t("adminLabelGenerator.cols") }}</span>
-          <input v-model.number="cols" type="number" min="1" max="8" class="fx-input w-full text-center" />
+          <input v-model.number="sheet.cols" type="number" min="1" max="10" class="fx-input w-full max-w-[7rem] text-center" />
         </label>
-        <label class="flex w-full max-w-[7rem] flex-col items-center gap-1.5 text-sm text-zinc-700">
+        <label class="col-span-1 flex flex-col items-center gap-1.5 text-sm text-zinc-700 sm:col-span-2">
           <span class="font-medium">{{ $t("adminLabelGenerator.rows") }}</span>
-          <input v-model.number="rows" type="number" min="0" max="20" class="fx-input w-full text-center" />
+          <input v-model.number="sheet.rows" type="number" min="1" max="19" class="fx-input w-full max-w-[7rem] text-center" />
         </label>
-        <div class="flex justify-center pb-1">
-          <FxToggle
-            v-model="fullPage"
-            size="md"
-            :label="$t('adminLabelGenerator.fullPage')"
-            :aria-label="$t('adminLabelGenerator.fullPage')"
-          />
-        </div>
+        <label v-for="side in marginSides" :key="side" class="flex flex-col items-center gap-1.5 text-sm text-zinc-700">
+          <span class="font-medium">{{ $t(`adminLabelGenerator.margin_${side}`) }}</span>
+          <input v-model.number="sheet[`margin_${side}`]" type="number" min="0" step="0.1" class="fx-input w-full max-w-[7rem] text-center" />
+        </label>
       </div>
-      <p class="mt-2 text-center text-xs text-zinc-400">{{ $t("adminLabelGenerator.rowsHint") }}</p>
-      <p v-if="fullPage" class="mx-auto mt-1 max-w-md text-center text-xs text-zinc-500">
-        {{ $t("adminLabelGenerator.fullPageHint") }}
-      </p>
+      <div class="mt-4 flex justify-center">
+        <FxToggle
+          v-model="sheet.hide_border"
+          size="md"
+          :label="$t('adminLabelGenerator.hideBorder')"
+          :aria-label="$t('adminLabelGenerator.hideBorder')"
+        />
+      </div>
+      <p class="mx-auto mt-3 max-w-md text-center text-xs text-zinc-500">{{ $t("adminLabelGenerator.layoutHint") }}</p>
     </section>
 
     <!-- Item label generator -->
@@ -262,7 +278,7 @@ function triggerDownload(url: string, name: string) {
           {{ $t("adminLabelGenerator.to") }}
           <input v-model.number="to" type="number" min="1" class="fx-input mt-1 w-32" />
         </label>
-        <button type="button" class="fx-btn-primary text-sm" :disabled="itemLoading || !canGenerateItems" @click="generateItems">
+        <button type="button" class="fx-btn-primary text-sm" :disabled="itemLoading || !canGenerateItems || !sheetValid" @click="generateItems">
           {{ itemLoading ? $t("adminLabelGenerator.generating") : $t("adminLabelGenerator.generate") }}
         </button>
         <button type="button" class="fx-btn-secondary text-sm" :disabled="!itemPdfUrl" @click="downloadItems">
@@ -307,7 +323,7 @@ function triggerDownload(url: string, name: string) {
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" class="fx-btn-primary text-sm" :disabled="locGenLoading || !canGenerateLocs" @click="generateLocations">
+        <button type="button" class="fx-btn-primary text-sm" :disabled="locGenLoading || !canGenerateLocs || !sheetValid" @click="generateLocations">
           {{ locGenLoading ? $t("adminLabelGenerator.generating") : $t("adminLocationLabelGenerator.generate") }}
         </button>
         <button type="button" class="fx-btn-secondary text-sm" :disabled="!locPdfUrl" @click="downloadLocations">

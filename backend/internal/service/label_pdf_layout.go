@@ -2,7 +2,10 @@ package service
 
 import (
 	"bytes"
+	"fmt"
 	"math"
+
+	"findus/backend/internal/domain"
 
 	"github.com/jung-kurt/gofpdf"
 )
@@ -10,13 +13,22 @@ import (
 const (
 	labelPageW     = 210.0
 	labelPageH     = 297.0
-	labelMarginX   = 10.0
-	labelMarginY   = 10.0
-	labelUsableW   = labelPageW - 2*labelMarginX
-	labelUsableH   = labelPageH - 2*labelMarginY
+	labelMinW      = 20.0 // smaller cells would make QR, text and lines overflow
+	labelMinH      = 15.0
 	labelLeftRatio = 0.46
 	ptToMM         = 0.352778 // 1 point in mm
 )
+
+// LabelSheetLayout describes the sticker grid on an A4 page; margins are in mm.
+type LabelSheetLayout struct {
+	Cols         int     `json:"cols"` // 0 = default (2)
+	Rows         int     `json:"rows"` // 0 = auto-fit
+	MarginTop    float64 `json:"margin_top"`
+	MarginRight  float64 `json:"margin_right"`
+	MarginBottom float64 `json:"margin_bottom"`
+	MarginLeft   float64 `json:"margin_left"`
+	HideBorder   bool    `json:"hide_border"`
+}
 
 type labelContent struct {
 	QRPath      string
@@ -24,6 +36,7 @@ type labelContent struct {
 }
 
 type labelLayout struct {
+	HideBorder    bool
 	Cols          int
 	Rows          int
 	MarginX       float64
@@ -41,27 +54,30 @@ type labelLayout struct {
 	LineSpacing   float64
 }
 
-func computeLabelLayout(cols, rows int, fullPage bool) labelLayout {
-	marginX, marginY := labelMarginX, labelMarginY
-	usableW, usableH := labelUsableW, labelUsableH
-	if fullPage {
-		marginX, marginY = 0, 0
-		usableW, usableH = labelPageW, labelPageH
+func computeLabelLayout(sheet LabelSheetLayout) (labelLayout, error) {
+	if min(sheet.MarginTop, sheet.MarginRight, sheet.MarginBottom, sheet.MarginLeft) < 0 {
+		return labelLayout{}, fmt.Errorf("%w: margins must not be negative", domain.ErrValidation)
 	}
+	cols, rows := sheet.Cols, sheet.Rows
+	usableW := labelPageW - sheet.MarginLeft - sheet.MarginRight
+	usableH := labelPageH - sheet.MarginTop - sheet.MarginBottom
 
 	if cols < 1 {
 		cols = 2
 	}
 	labelW := usableW / float64(cols)
 
-	usableHf := float64(usableH) // avoid constant-folding to float constant
 	if rows < 1 {
-		rows = int(usableHf / 38.0)
+		rows = int(usableH / 38.0)
 		if rows < 1 {
 			rows = 1
 		}
 	}
-	labelH := usableHf / float64(rows)
+	labelH := usableH / float64(rows)
+
+	if labelW < labelMinW || labelH < labelMinH {
+		return labelLayout{}, fmt.Errorf("%w: labels too small (min %.0f x %.0f mm), reduce margins, columns or rows", domain.ErrValidation, labelMinW, labelMinH)
+	}
 
 	leftW := labelW * labelLeftRatio
 
@@ -111,10 +127,11 @@ func computeLabelLayout(cols, rows int, fullPage bool) labelLayout {
 	}
 
 	return labelLayout{
+		HideBorder:    sheet.HideBorder,
 		Cols:          cols,
 		Rows:          rows,
-		MarginX:       marginX,
-		MarginY:       marginY,
+		MarginX:       sheet.MarginLeft,
+		MarginY:       sheet.MarginTop,
 		LabelW:        labelW,
 		LabelH:        labelH,
 		LabelsPerPage: cols * rows,
@@ -126,13 +143,13 @@ func computeLabelLayout(cols, rows int, fullPage bool) labelLayout {
 		FontSize:      fontSize,
 		NumLines:      numLines,
 		LineSpacing:   lineSpacing,
-	}
+	}, nil
 }
 
 func renderLabelsPDF(contents []labelContent, layout labelLayout) ([]byte, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.SetMargins(layout.MarginX, layout.MarginY, layout.MarginX)
-	pdf.SetAutoPageBreak(false, layout.MarginY)
+	pdf.SetMargins(0, 0, 0)
+	pdf.SetAutoPageBreak(false, 0)
 	pdf.SetLineWidth(0.2)
 	pdf.SetDrawColor(80, 80, 80)
 	pdf.SetTextColor(20, 20, 20)
@@ -149,7 +166,9 @@ func renderLabelsPDF(contents []labelContent, layout labelLayout) ([]byte, error
 		x := layout.MarginX + float64(col)*layout.LabelW
 		y := layout.MarginY + float64(row)*layout.LabelH
 
-		pdf.Rect(x, y, layout.LabelW, layout.LabelH, "")
+		if !layout.HideBorder {
+			pdf.Rect(x, y, layout.LabelW, layout.LabelH, "")
+		}
 		pdf.Line(x+layout.LeftW, y, x+layout.LeftW, y+layout.LabelH)
 
 		// QR code, horizontally centered in the left cell
