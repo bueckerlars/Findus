@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"compress/gzip"
 	"io/fs"
+	"mime"
 	"net/http"
+	"path"
+	"strings"
 
 	"findus/backend/internal/domain"
 	"findus/backend/internal/transport/http/middleware"
@@ -19,8 +23,46 @@ func (s *Server) MountApp(mux *http.ServeMux) error {
 	if err != nil {
 		return err
 	}
-	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets))))
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", assetHandler(assets)))
 	return nil
+}
+
+// assetHandler serves the Vite build output. File names contain a content hash,
+// so browsers may keep them forever; JS and CSS are gzipped for clients that accept it.
+func assetHandler(assets fs.FS) http.Handler {
+	files := http.FileServer(http.FS(assets))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := r.URL.Path
+		if st, err := fs.Stat(assets, name); err != nil || st.IsDir() {
+			files.ServeHTTP(w, r) // no cache headers: a missing file may exist after the next deploy
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		ext := path.Ext(name)
+		if ext != ".js" && ext != ".css" {
+			files.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Vary", "Accept-Encoding")
+		// shortcut: any mention of gzip counts, "gzip;q=0" is not parsed; browsers do not send it.
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			files.ServeHTTP(w, r)
+			return
+		}
+		b, err := fs.ReadFile(assets, name)
+		if err != nil {
+			w.Header().Del("Cache-Control")
+			http.Error(w, "asset", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+		w.Header().Set("Content-Encoding", "gzip")
+		// shortcut: compresses on every request; each browser fetches a file only once.
+		// Precompress at startup if CPU ever shows up here.
+		zw := gzip.NewWriter(w)
+		_, _ = zw.Write(b)
+		_ = zw.Close()
+	})
 }
 
 // ServeSPA returns index.html for Vue Router (client-side routes).
