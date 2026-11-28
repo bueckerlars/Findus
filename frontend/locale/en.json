@@ -854,5 +854,22 @@
       "templates": "Templates",
       "attachments": "Attachments"
     }
+  },
+  "locationPicker": {
+    "placeholder": "Choose a location …",
+    "search": "Search locations …",
+    "noMatch": "No matching location",
+    "subLocations": "Sub-locations of {name}"
+  },
+  "moveItems": {
+    "start": "Move",
+    "selectAll": "Select all",
+    "selectNone": "Clear selection",
+    "move": "Move ({n})",
+    "title": "Move items ({n})",
+    "target": "Destination",
+    "confirm": "Move",
+    "done": "Items moved: {n}",
+    "partial": "Moved only {n} of {total} items: {reason}"
   }
 }
