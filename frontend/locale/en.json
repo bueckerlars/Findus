@@ -856,6 +856,7 @@
     }
   },
   "locationPicker": {
+    "topLevel": "Top level",
     "placeholder": "Choose a location …",
     "search": "Search locations …",
     "noMatch": "No matching location",

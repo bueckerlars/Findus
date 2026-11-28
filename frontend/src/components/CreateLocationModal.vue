@@ -2,15 +2,14 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { api, postJson } from "../api";
+import { postJson } from "../api";
 import { toast } from "../composables/useToast";
 import FxModal from "./FxModal.vue";
+import LocationPicker from "./LocationPicker.vue";
 import FxAlert from "./primitives/FxAlert.vue";
 import FxButton from "./primitives/FxButton.vue";
 
 const { t } = useI18n();
-
-type LocOpt = { ID: string; Label: string };
 
 const props = defineProps<{
   modelValue: boolean;
@@ -24,19 +23,13 @@ const router = useRouter();
 const name = ref("");
 const description = ref("");
 const parentId = ref("");
-const parentOptions = ref<LocOpt[]>([]);
 const err = ref("");
 const busy = ref(false);
 
-async function load() {
-  err.value = "";
+function load() {
   if (!props.modelValue) return;
-  const pid = props.initialParentId?.trim() || "";
-  const r = await api<{ parent_options: LocOpt[]; selected_parent: string }>(
-    "/api/locations/new" + (pid ? "?parent_id=" + encodeURIComponent(pid) : ""),
-  );
-  parentOptions.value = r.parent_options;
-  parentId.value = r.selected_parent || pid || "";
+  err.value = "";
+  parentId.value = props.initialParentId?.trim() || "";
   name.value = "";
   description.value = "";
 }
@@ -44,14 +37,14 @@ async function load() {
 watch(
   () => props.modelValue,
   (open) => {
-    if (open) void load();
+    if (open) load();
   },
 );
 
 watch(
   () => props.initialParentId,
   () => {
-    if (props.modelValue) void load();
+    load();
   },
 );
 
@@ -97,9 +90,7 @@ async function save() {
       </div>
       <div>
         <label class="fx-label" for="fx-create-loc-parent">{{ $t("common.parent") }}</label>
-        <select id="fx-create-loc-parent" v-model="parentId" class="fx-input">
-          <option v-for="o in parentOptions" :key="o.ID || 'root'" :value="o.ID">{{ o.Label }}</option>
-        </select>
+        <LocationPicker id="fx-create-loc-parent" v-model="parentId" :none-label="$t('locationPicker.topLevel')" />
       </div>
     </form>
 
