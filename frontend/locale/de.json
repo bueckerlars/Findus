@@ -165,6 +165,23 @@
     "noLocations": "Noch keine Standorte.",
     "createFirst": "Ersten Standort anlegen"
   },
+  "qrScan": {
+    "button": "QR scannen",
+    "title": "QR-Code scannen",
+    "aim": "Halte den QR-Code vor die Kamera.",
+    "loading": "Wird geprüft …",
+    "noCamera": "Kamera nicht verfügbar. Erlaube den Kamerazugriff und öffne Findus über HTTPS.",
+    "unknown": "Dieser QR-Code ist in Findus nicht bekannt.",
+    "here": "„{name}“ befindet sich bereits in diesem Standort.",
+    "elsewhere": "„{name}“ liegt in „{from}“. Nach „{to}“ verschieben?",
+    "move": "Verschieben",
+    "moved": "Artikel verschoben",
+    "openItem": "Artikel öffnen",
+    "isLocation": "Dieser QR-Code gehört zu einem Standort.",
+    "openLocation": "Standort öffnen",
+    "noCreate": "Dieses Etikett ist noch frei. Dir fehlt die Berechtigung, Artikel anzulegen.",
+    "again": "Erneut scannen"
+  },
   "locationDetail": {
     "inside": "In diesem Standort",
     "addSub": "+ Unterstandort",

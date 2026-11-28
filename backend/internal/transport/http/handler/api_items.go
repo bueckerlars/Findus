@@ -304,6 +304,22 @@ func (s *Server) APIItemUpdate(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/items/" + id})
 }
 
+// APIItemMove changes only the location, so the scanner cannot drop other item fields.
+func (s *Server) APIItemMove(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		LocationID string `json:"location_id"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		s.writeJSONError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := s.Inventory.MoveItem(r.Context(), r.PathValue("id"), req.LocationID); err != nil {
+		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 func (s *Server) APIItemDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if err := s.deleteItem(ctx, r.PathValue("id")); err != nil {

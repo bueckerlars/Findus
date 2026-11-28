@@ -90,6 +90,8 @@ func (s *Server) MountAPI(mux *http.ServeMux) {
 	mux.Handle("GET /api/me", middleware.RequireAuth(http.HandlerFunc(s.APIMe)))
 	mux.Handle("POST /api/auth/logout", middleware.RequireAuth(http.HandlerFunc(s.APIAuthLogout)))
 
+	mux.Handle("GET /api/qr/{token}", middleware.RequireAuth(http.HandlerFunc(s.APIQRResolve)))
+
 	mux.Handle("GET /api/home", middleware.RequireAuth(http.HandlerFunc(s.APIHome)))
 	mux.Handle("GET /api/profile", middleware.RequireAuth(http.HandlerFunc(s.APIProfileGet)))
 	mux.Handle("POST /api/profile", middleware.RequireAuth(http.HandlerFunc(s.APIProfilePost)))
@@ -115,6 +117,7 @@ func (s *Server) MountAPI(mux *http.ServeMux) {
 	mux.Handle("GET /api/items/{id}", middleware.RequireAuth(http.HandlerFunc(s.APIItemGet)))
 	mux.Handle("GET /api/items/{id}/edit", middleware.RequireAuth(middleware.RequirePermission(domain.PermItemsWrite)(http.HandlerFunc(s.APIItemEdit))))
 	mux.Handle("POST /api/items/{id}", middleware.RequireAuth(middleware.RequirePermission(domain.PermItemsWrite)(http.HandlerFunc(s.APIItemUpdate))))
+	mux.Handle("POST /api/items/{id}/move", middleware.RequireAuth(middleware.RequirePermission(domain.PermItemsWrite)(http.HandlerFunc(s.APIItemMove))))
 	mux.Handle("POST /api/items/{id}/delete", middleware.RequireAuth(middleware.RequirePermission(domain.PermItemsWrite)(http.HandlerFunc(s.APIItemDelete))))
 	mux.Handle("GET /api/items/{id}/attachments", middleware.RequireAuth(http.HandlerFunc(s.APIItemAttachmentsList)))
 	mux.Handle("POST /api/items/{id}/attachments", middleware.RequireAuth(middleware.RequirePermission(domain.PermItemsWrite)(http.HandlerFunc(s.APIItemAttachmentCreate))))

@@ -165,6 +165,23 @@
     "noLocations": "No locations yet.",
     "createFirst": "Create your first location"
   },
+  "qrScan": {
+    "button": "Scan QR",
+    "title": "Scan QR code",
+    "aim": "Hold the QR code in front of the camera.",
+    "loading": "Checking …",
+    "noCamera": "Camera unavailable. Allow camera access and open Findus over HTTPS.",
+    "unknown": "Findus does not know this QR code.",
+    "here": "“{name}” is already in this location.",
+    "elsewhere": "“{name}” is in “{from}”. Move it to “{to}”?",
+    "move": "Move",
+    "moved": "Item moved",
+    "openItem": "Open item",
+    "isLocation": "This QR code belongs to a location.",
+    "openLocation": "Open location",
+    "noCreate": "This label is unused. You do not have permission to create items.",
+    "again": "Scan again"
+  },
   "locationDetail": {
     "inside": "Inside this location",
     "addSub": "+ Add sub-location",
