@@ -372,7 +372,7 @@
     "margin_bottom": "Bottom margin (mm)",
     "margin_left": "Left margin (mm)",
     "hideBorder": "Hide label borders",
-    "layoutHint": "Margins of an A4 sheet; the area between them is split evenly into columns and rows. Print at “actual size” (100%).",
+    "layoutHint": "Margins of an A4 sheet; the area between them is split evenly into columns and rows. Print at “actual size” (100%). The layout is saved in this browser.",
     "itemTitle": "Item labels"
   },
   "adminLocationLabelGenerator": {
