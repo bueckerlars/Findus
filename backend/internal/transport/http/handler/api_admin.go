@@ -74,7 +74,7 @@ func (s *Server) APIAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.Admin.CreateUser(ctx, req.Username, req.Email, req.Password, role); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/users"})
@@ -97,7 +97,10 @@ func (s *Server) APIAdminUserRole(w http.ResponseWriter, r *http.Request) {
 		s.writeJSONError(w, http.StatusBadRequest, "bad role")
 		return
 	}
-	_ = s.Admin.SetUserRole(ctx, id, role)
+	if err := s.Admin.SetUserRole(ctx, id, role); err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/users"})
 }
 
@@ -113,7 +116,16 @@ func (s *Server) APIAdminUserActive(w http.ResponseWriter, r *http.Request) {
 		s.writeJSONError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	_ = s.Admin.SetUserActive(ctx, id, req.Active)
+	if err := s.Admin.SetUserActive(ctx, id, req.Active); err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if !req.Active && s.MCP != nil {
+		if err := s.MCP.Delete(ctx, id); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/users"})
 }
 
@@ -141,7 +153,7 @@ func (s *Server) APIAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.Admin.CreateInvite(ctx, u.ID, role, ttl); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/users"})
@@ -164,7 +176,7 @@ func (s *Server) APIAdminSettingsRegistration(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if err := s.Admin.SetRegistrationMode(ctx, m); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/settings"})
@@ -219,11 +231,11 @@ func (s *Server) APIAdminSettingsItemIDsPost(w http.ResponseWriter, r *http.Requ
 	want.Width = int(req.Width)
 	want = want.Normalize()
 	if err := want.Validate(); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	if err := s.Inventory.SetItemIDPolicy(ctx, s.Config.DataDir, want); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/settings"})
@@ -263,7 +275,7 @@ func (s *Server) APIAdminLabelsGenerate(w http.ResponseWriter, r *http.Request) 
 		Sheet:  req.LabelSheetLayout,
 	})
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writePDFResponse(w, out.Filename, out.PDF)
@@ -294,7 +306,7 @@ func (s *Server) APIAdminLocationLabelsGenerate(w http.ResponseWriter, r *http.R
 		Sheet:       req.LabelSheetLayout,
 	})
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writePDFResponse(w, out.Filename, out.PDF)
@@ -351,7 +363,7 @@ func (s *Server) APIAdminTemplateCreate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := s.Inventory.CreateItemTemplate(ctx, req.ID, req.DisplayName, []byte(req.FieldsJSON), req.SortOrder); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/templates"})
@@ -381,7 +393,7 @@ func (s *Server) APIAdminTemplateUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := s.Inventory.UpdateItemTemplate(ctx, id, req.DisplayName, []byte(req.FieldsJSON), req.SortOrder); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/templates"})
@@ -395,7 +407,7 @@ func (s *Server) APIAdminTemplateDelete(w http.ResponseWriter, r *http.Request) 
 			s.writeJSONError(w, http.StatusNotFound, "not found")
 			return
 		}
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/templates"})
@@ -476,10 +488,10 @@ func (s *Server) APIAdminGroupsCreate(w http.ResponseWriter, r *http.Request) {
 	g, err := s.Admin.CreatePermissionGroup(ctx, req.Name, perms)
 	if err != nil {
 		if errors.Is(err, domain.ErrValidation) {
-			s.writeJSONError(w, http.StatusBadRequest, err.Error())
+			s.writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"id": g.ID, "next": "/admin/groups"})
@@ -534,10 +546,10 @@ func (s *Server) APIAdminGroupUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, domain.ErrValidation) {
-			s.writeJSONError(w, http.StatusBadRequest, err.Error())
+			s.writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/groups/" + id})
@@ -551,7 +563,7 @@ func (s *Server) APIAdminGroupDelete(w http.ResponseWriter, r *http.Request) {
 			s.writeJSONError(w, http.StatusNotFound, "not found")
 			return
 		}
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/groups"})
@@ -575,10 +587,10 @@ func (s *Server) APIAdminUserGroupsSet(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, domain.ErrValidation) {
-			s.writeJSONError(w, http.StatusBadRequest, err.Error())
+			s.writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/admin/users"})

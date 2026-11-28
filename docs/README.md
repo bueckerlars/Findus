@@ -24,7 +24,7 @@ Findus is a **single Go binary** that serves an embedded Vue 3 SPA, a JSON API u
 
 | Layer | Technology |
 |---|---|
-| Backend language | Go 1.23 |
+| Backend language | Go 1.26 |
 | HTTP router | `net/http` (Go 1.22+ route patterns) |
 | Database | SQLite via `modernc.org/sqlite` (CGO-free) |
 | Migrations | [goose](https://github.com/pressly/goose) SQL files, embedded |

@@ -15,6 +15,8 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	List(ctx context.Context) ([]domain.User, error)
 	Update(ctx context.Context, u *domain.User) error
+	// BumpSessionVersion invalidates all sessions of a user and returns the new version.
+	BumpSessionVersion(ctx context.Context, id string) (int, error)
 }
 
 type LocationRepository interface {

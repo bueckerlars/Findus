@@ -92,13 +92,17 @@ At runtime, the HTTP server:
 
 ### Authentication
 
-Users authenticate with a username and password. On success, the server issues a **JWT** stored in an **HTTP-only cookie** (`findus_session`). The cookie is `SameSite=Lax`; set `FINDUS_COOKIE_SECURE=true` under HTTPS.
+Users authenticate with a username and password. On success, the server issues a **JWT** stored in an **HTTP-only cookie** (`findus_session`). The cookie is `SameSite=Lax`; with an `https://` base URL it is also `Secure` and named `__Host-findus_session`. Each token carries the user's session version: logout, password change, deactivation and role change raise it and so end all sessions.
 
 The JWT secret is loaded from `FINDUS_JWT_SECRET` or auto-generated and stored in `$DATA_DIR/.jwt_secret` on first run.
 
 ### CSRF protection
 
-Mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) require the **`X-CSRF-Token`** header. The server issues a CSRF token as a non-HttpOnly cookie (`findus_csrf`); the Vue app reads it and echoes it in the header. The server validates the header matches the cookie (double-submit pattern).
+Mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) require the **`X-CSRF-Token`** header. The server issues a CSRF token as a non-HttpOnly cookie (`findus_csrf`); the Vue app reads it and echoes it in the header. The server validates the header matches the cookie (double-submit pattern). Form fields are not accepted, so no body is parsed before the check.
+
+### Request limits and file safety
+
+Bodies are capped at 1 MiB, signed-in uploads at 40 MiB. Login, registration and password checks are rate limited in memory. Uploaded images must be JPEG, PNG, WebP or GIF of at most 50 megapixels. IDs from import files may only contain letters, digits, `-` and `_`; file paths are never taken from an import.
 
 ### Roles and registration
 
@@ -107,7 +111,7 @@ Mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) require the **`X-CSRF-Token
 | `admin` | Full CRUD on all resources, user management, settings, templates, backup |
 | `user` | Browse and search inventory, view QR codes and photos, edit own profile |
 
-The **first registered account** is automatically assigned the `admin` role. Subsequent registrations follow the mode configured in admin settings:
+The **first registered account** needs the setup token (see [Configuration](configuration.md)) and is assigned the `admin` role. Subsequent registrations follow the mode configured in admin settings:
 
 | Mode | Behavior |
 |---|---|

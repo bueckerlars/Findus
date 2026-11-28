@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net/mail"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -19,17 +21,32 @@ type Auth struct {
 	Users    repository.UserRepository
 	Settings repository.SettingsRepository
 	Invites  repository.InviteRepository
+	// SetupToken, if set, is required to create the first (admin) account.
+	SetupToken string
+
+	// registerMu makes "check, then create" in Register atomic, so that one invite or one empty
+	// database yields one account.
+	// shortcut: only holds within one process, which SQLite implies; use a transaction otherwise.
+	registerMu sync.Mutex
 }
+
+// dummyPasswordHash is compared for unknown users, so that response times do not reveal which names exist.
+var dummyPasswordHash = sync.OnceValue(func() []byte {
+	h, _ := bcrypt.GenerateFromPassword([]byte("no such user"), bcrypt.DefaultCost)
+	return h
+})
 
 func (a *Auth) Login(ctx context.Context, username, password string) (*domain.User, error) {
 	u, err := a.Users.GetByUsername(ctx, strings.TrimSpace(username))
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
+			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash(), []byte(password))
 			return nil, domain.ErrUnauthorized
 		}
 		return nil, err
 	}
 	if !u.IsActive {
+		_ = bcrypt.CompareHashAndPassword(dummyPasswordHash(), []byte(password))
 		return nil, domain.ErrUnauthorized
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
@@ -48,16 +65,8 @@ func (a *Auth) Register(ctx context.Context, username, email, password, inviteTo
 		return nil, err
 	}
 	email = emailNorm
-	if _, err := a.Users.GetByUsername(ctx, username); err == nil {
-		return nil, fmt.Errorf("username already taken: %w", domain.ErrConflict)
-	} else if !errors.Is(err, domain.ErrNotFound) {
-		return nil, err
-	}
-	if _, err := a.Users.GetByEmail(ctx, email); err == nil {
-		return nil, fmt.Errorf("email already registered: %w", domain.ErrConflict)
-	} else if !errors.Is(err, domain.ErrNotFound) {
-		return nil, err
-	}
+	a.registerMu.Lock()
+	defer a.registerMu.Unlock()
 	n, err := a.Users.Count(ctx)
 	if err != nil {
 		return nil, err
@@ -67,6 +76,9 @@ func (a *Auth) Register(ctx context.Context, username, email, password, inviteTo
 	var consumedInvite *domain.Invite
 
 	if n == 0 {
+		if a.SetupToken != "" && subtle.ConstantTimeCompare([]byte(strings.TrimSpace(inviteToken)), []byte(a.SetupToken)) != 1 {
+			return nil, domain.ErrInvalidSetupToken
+		}
 		role = domain.RoleAdmin
 	} else {
 		mode, ok, err := a.registrationMode(ctx)
@@ -96,6 +108,16 @@ func (a *Auth) Register(ctx context.Context, username, email, password, inviteTo
 		}
 	}
 
+	if _, err := a.Users.GetByUsername(ctx, username); err == nil {
+		return nil, fmt.Errorf("username already taken: %w", domain.ErrConflict)
+	} else if !errors.Is(err, domain.ErrNotFound) {
+		return nil, err
+	}
+	if _, err := a.Users.GetByEmail(ctx, email); err == nil {
+		return nil, fmt.Errorf("email already registered: %w", domain.ErrConflict)
+	} else if !errors.Is(err, domain.ErrNotFound) {
+		return nil, err
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -173,6 +195,11 @@ func (a *Auth) UpdateProfile(ctx context.Context, userID, username, email, curre
 	}
 	if err := a.Users.Update(ctx, u); err != nil {
 		return nil, err
+	}
+	if newPassword != "" {
+		if u.SessionVersion, err = a.Users.BumpSessionVersion(ctx, u.ID); err != nil {
+			return nil, err
+		}
 	}
 	return u, nil
 }

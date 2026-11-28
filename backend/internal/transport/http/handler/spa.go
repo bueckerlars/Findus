@@ -194,10 +194,13 @@ func (s *Server) Handler() (http.Handler, error) {
 
 	mux.Handle("GET /{path...}", http.HandlerFunc(s.ServeSPA))
 
+	// The first entry is the innermost: LimitBody has to wrap the router itself.
 	return middleware.Chain(mux,
+		middleware.LimitBody,
 		middleware.AuthOptional(s.Users, s.Groups, s.JWTSecret, s.Config.CookieSecure),
 		middleware.CSRF(s.Config.CookieSecure),
 		middleware.RequestLog(s.Log, s.DB),
 		middleware.Recover(s.Log),
+		middleware.SecurityHeaders(s.Config.CookieSecure),
 	), nil
 }

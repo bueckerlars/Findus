@@ -15,7 +15,7 @@ const sessionCookie = "findus_session"
 func AuthOptional(users repository.UserRepository, groups repository.PermissionGroupRepository, secret []byte, secure bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, err := r.Cookie(sessionCookie)
+			c, err := r.Cookie(cookieName(sessionCookie, secure))
 			if err != nil || c.Value == "" {
 				next.ServeHTTP(w, r)
 				return
@@ -30,7 +30,7 @@ func AuthOptional(users repository.UserRepository, groups repository.PermissionG
 				next.ServeHTTP(w, r)
 				return
 			}
-			if string(u.Role) != claims.Role {
+			if string(u.Role) != claims.Role || u.SessionVersion != claims.SessionVersion {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -99,12 +99,12 @@ func RequirePermission(p domain.Permission) func(http.Handler) http.Handler {
 
 // IssueSessionCookie sets JWT cookie (call after successful login).
 func IssueSessionCookie(w http.ResponseWriter, secret []byte, u *domain.User, secure bool) error {
-	token, err := authjwt.Sign(secret, u.ID, u.Role, 7*24*time.Hour)
+	token, err := authjwt.Sign(secret, u.ID, u.Role, u.SessionVersion, 7*24*time.Hour)
 	if err != nil {
 		return err
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
+		Name:     cookieName(sessionCookie, secure),
 		Value:    token,
 		Path:     "/",
 		MaxAge:   86400 * 7,
@@ -117,7 +117,7 @@ func IssueSessionCookie(w http.ResponseWriter, secret []byte, u *domain.User, se
 
 func ClearSessionCookie(w http.ResponseWriter, secure bool) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
+		Name:     cookieName(sessionCookie, secure),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,

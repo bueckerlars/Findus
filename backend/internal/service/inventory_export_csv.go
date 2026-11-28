@@ -19,6 +19,31 @@ import (
 
 var importTemplateIDRE = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
+const maxImportUnzippedBytes = 128 << 20
+
+// Spreadsheets run cells starting with these characters as formulas.
+const csvFormulaStarts = "=+-@\t\r"
+
+func isCSVFormula(v string) bool {
+	// Leading apostrophes count too, so that unescaping restores the exact original.
+	v = strings.TrimLeft(v, "'")
+	return v != "" && strings.IndexByte(csvFormulaStarts, v[0]) >= 0
+}
+
+func escapeCSVFormula(v string) string {
+	if isCSVFormula(v) {
+		return "'" + v
+	}
+	return v
+}
+
+func unescapeCSVFormula(v string) string {
+	if strings.HasPrefix(v, "'") && isCSVFormula(v) {
+		return v[1:]
+	}
+	return v
+}
+
 func encodeInventoryCSVZIP(bundle *InventoryExportBundle) ([]byte, error) {
 	if bundle == nil {
 		return nil, fmt.Errorf("%w: nil bundle", domain.ErrValidation)
@@ -81,7 +106,7 @@ func writeLocationsCSV(zw *zip.Writer, locs []domain.Location) error {
 			pid = *l.ParentID
 		}
 		row := []string{
-			l.ID, l.Name, pid, l.Description, l.QRToken,
+			l.ID, escapeCSVFormula(l.Name), pid, escapeCSVFormula(l.Description), l.QRToken,
 			l.CreatedAt.UTC().Format(time.RFC3339Nano),
 			l.UpdatedAt.UTC().Format(time.RFC3339Nano),
 		}
@@ -108,7 +133,7 @@ func writeLabelsCSV(zw *zip.Writer, labels []domain.Label) error {
 			dtp = *lb.DefaultTemplateType
 		}
 		row := []string{
-			lb.ID, lb.Name, lb.Color, dtp,
+			lb.ID, escapeCSVFormula(lb.Name), escapeCSVFormula(lb.Color), dtp,
 			lb.CreatedAt.UTC().Format(time.RFC3339Nano),
 			lb.UpdatedAt.UTC().Format(time.RFC3339Nano),
 		}
@@ -131,7 +156,7 @@ func writeTemplatesCSV(zw *zip.Writer, tpls []InventoryExportTemplate) error {
 	}
 	for _, t := range tpls {
 		row := []string{
-			t.ID, t.DisplayName, string(t.FieldsJSON),
+			t.ID, escapeCSVFormula(t.DisplayName), string(t.FieldsJSON),
 			strconv.Itoa(t.SortOrder),
 			t.CreatedAt.UTC().Format(time.RFC3339Nano),
 			t.UpdatedAt.UTC().Format(time.RFC3339Nano),
@@ -159,7 +184,7 @@ func writeItemsCSV(zw *zip.Writer, items []InventoryExportItem) error {
 			pp = *it.PhotoPath
 		}
 		row := []string{
-			it.ID, it.Name, it.Description, it.LocationID, string(it.TemplateType),
+			it.ID, escapeCSVFormula(it.Name), escapeCSVFormula(it.Description), it.LocationID, string(it.TemplateType),
 			string(it.TemplateData), string(it.AdditionalData), pp, it.QRToken,
 			it.CreatedAt.UTC().Format(time.RFC3339Nano),
 			it.UpdatedAt.UTC().Format(time.RFC3339Nano),
@@ -202,15 +227,25 @@ func decodeInventoryCSVZIP(data []byte) (*InventoryExportBundle, error) {
 		return nil, fmt.Errorf("zip: %w", err)
 	}
 	files := make(map[string][]byte)
+	remaining := int64(maxImportUnzippedBytes)
 	for _, f := range zr.File {
+		switch f.Name {
+		case csvFileManifest, csvFileLocations, csvFileLabels, csvFileItemTemplates, csvFileItems, csvFileItemLabels:
+		default:
+			continue
+		}
 		rc, err := f.Open()
 		if err != nil {
 			return nil, err
 		}
-		b, err := io.ReadAll(rc)
+		// Count what actually comes out: the sizes in the ZIP header can lie.
+		b, err := io.ReadAll(io.LimitReader(rc, remaining+1))
 		_ = rc.Close()
 		if err != nil {
 			return nil, err
+		}
+		if remaining -= int64(len(b)); remaining < 0 {
+			return nil, fmt.Errorf("%w: zip content too large (max %d MiB)", domain.ErrValidation, maxImportUnzippedBytes>>20)
 		}
 		files[f.Name] = b
 	}
@@ -296,9 +331,9 @@ func readLocationsCSV(raw []byte) ([]domain.Location, error) {
 		}
 		out = append(out, domain.Location{
 			ID:          strings.TrimSpace(getCol(row, idx, "id")),
-			Name:        getCol(row, idx, "name"),
+			Name:        unescapeCSVFormula(getCol(row, idx, "name")),
 			ParentID:    pid,
-			Description: getCol(row, idx, "description"),
+			Description: unescapeCSVFormula(getCol(row, idx, "description")),
 			QRToken:     strings.TrimSpace(getCol(row, idx, "qr_token")),
 			CreatedAt:   ct.UTC(),
 			UpdatedAt:   ut.UTC(),
@@ -347,8 +382,8 @@ func readLabelsCSV(raw []byte) ([]domain.Label, error) {
 		}
 		out = append(out, domain.Label{
 			ID:                  strings.TrimSpace(getCol(row, idx, "id")),
-			Name:                getCol(row, idx, "name"),
-			Color:               getCol(row, idx, "color"),
+			Name:                unescapeCSVFormula(getCol(row, idx, "name")),
+			Color:               unescapeCSVFormula(getCol(row, idx, "color")),
 			DefaultTemplateType: dtpPtr,
 			CreatedAt:           ct.UTC(),
 			UpdatedAt:           ut.UTC(),
@@ -400,7 +435,7 @@ func readTemplatesCSV(raw []byte) ([]InventoryExportTemplate, error) {
 		}
 		out = append(out, InventoryExportTemplate{
 			ID:          strings.TrimSpace(getCol(row, idx, "id")),
-			DisplayName: getCol(row, idx, "display_name"),
+			DisplayName: unescapeCSVFormula(getCol(row, idx, "display_name")),
 			FieldsJSON:  fj,
 			SortOrder:   so,
 			CreatedAt:   ct.UTC(),
@@ -459,8 +494,8 @@ func readItemsCSV(raw []byte) ([]InventoryExportItem, error) {
 		out = append(out, InventoryExportItem{
 			Item: domain.Item{
 				ID:             strings.TrimSpace(getCol(row, idx, "id")),
-				Name:           getCol(row, idx, "name"),
-				Description:    getCol(row, idx, "description"),
+				Name:           unescapeCSVFormula(getCol(row, idx, "name")),
+				Description:    unescapeCSVFormula(getCol(row, idx, "description")),
 				LocationID:     strings.TrimSpace(getCol(row, idx, "location_id")),
 				TemplateType:   domain.TemplateType(strings.TrimSpace(getCol(row, idx, "template_type"))),
 				TemplateData:   td,

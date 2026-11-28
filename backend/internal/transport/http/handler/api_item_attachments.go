@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"findus/backend/internal/domain"
+	"findus/backend/internal/service"
 )
 
 func (s *Server) itemAttachmentsPayload(ctx context.Context, itemID string) ([]map[string]any, error) {
@@ -81,10 +82,10 @@ func (s *Server) APIItemAttachmentCreate(w http.ResponseWriter, r *http.Request)
 		case errors.Is(err, domain.ErrNotFound):
 			s.writeJSONError(w, http.StatusNotFound, "not found")
 		case errors.Is(err, domain.ErrValidation):
-			s.writeJSONError(w, http.StatusBadRequest, err.Error())
+			s.writeError(w, http.StatusBadRequest, err)
 		default:
 			s.Log.Error("attachment upload", "err", err)
-			s.writeJSONError(w, http.StatusBadRequest, err.Error())
+			s.writeError(w, http.StatusBadRequest, err)
 		}
 		return
 	}
@@ -111,10 +112,10 @@ func (s *Server) APIItemAttachmentPatch(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		if errors.Is(err, domain.ErrValidation) {
-			s.writeJSONError(w, http.StatusBadRequest, err.Error())
+			s.writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"ok": "1"})
@@ -130,7 +131,7 @@ func (s *Server) APIItemAttachmentDelete(w http.ResponseWriter, r *http.Request)
 			s.writeJSONError(w, http.StatusNotFound, "not found")
 			return
 		}
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"ok": "1"})
@@ -154,7 +155,11 @@ func (s *Server) ItemAttachmentDownload(w http.ResponseWriter, r *http.Request) 
 		http.NotFound(w, r)
 		return
 	}
-	p := filepath.Join(s.Config.DataDir, filepath.FromSlash(a.StoragePath))
+	p, err := service.DataFile(s.Config.DataDir, "item-attachments", a.StoragePath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
 	f, err := os.Open(p)
 	if err != nil {
 		http.NotFound(w, r)

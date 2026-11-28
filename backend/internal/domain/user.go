@@ -20,6 +20,8 @@ type User struct {
 	UpdatedAt    time.Time
 	AvatarPath   *string
 	UITheme      string
+	// SessionVersion is part of every session token; raising it signs the user out everywhere.
+	SessionVersion int
 }
 
 func (r Role) IsAdmin() bool { return r == RoleAdmin }

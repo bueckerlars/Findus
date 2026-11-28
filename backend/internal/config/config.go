@@ -13,6 +13,8 @@ type Config struct {
 	BaseURL      string
 	JWTSecret    string
 	CookieSecure bool
+	TrustProxy   bool   // take the client IP from X-Forwarded-For
+	SetupToken   string // required for the first account; generated when empty
 	LogLevel     string
 	LogFormat    string // text (default), json
 }
@@ -42,6 +44,8 @@ func Load() (Config, error) {
 	if v := strings.TrimSpace(os.Getenv("FINDUS_JWT_SECRET")); v != "" {
 		c.JWTSecret = v
 	}
+	// Behind HTTPS the cookies are secure unless explicitly configured otherwise.
+	c.CookieSecure = strings.HasPrefix(c.BaseURL, "https://")
 	if v := strings.TrimSpace(os.Getenv("FINDUS_COOKIE_SECURE")); v != "" {
 		b, err := strconv.ParseBool(v)
 		if err != nil {
@@ -49,6 +53,14 @@ func Load() (Config, error) {
 		}
 		c.CookieSecure = b
 	}
+	if v := strings.TrimSpace(os.Getenv("FINDUS_TRUST_PROXY")); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("FINDUS_TRUST_PROXY: %w", err)
+		}
+		c.TrustProxy = b
+	}
+	c.SetupToken = strings.TrimSpace(os.Getenv("FINDUS_SETUP_TOKEN"))
 	if v := strings.TrimSpace(os.Getenv("FINDUS_LOG_LEVEL")); v != "" {
 		c.LogLevel = v
 	}

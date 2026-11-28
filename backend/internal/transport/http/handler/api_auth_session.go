@@ -101,6 +101,17 @@ func (s *Server) APIAuthUsernameAvailable(w http.ResponseWriter, r *http.Request
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	if !s.limits.allow("username:"+s.clientIP(r), 60, time.Minute) {
+		s.tooManyRequests(w)
+		return
+	}
+	// With registration closed there is nobody to help, so do not tell which accounts exist.
+	if n, err := s.Users.Count(r.Context()); err == nil && n > 0 {
+		if mode, ok, _ := s.AuthSettingsMode(r.Context()); !ok || mode == domain.RegistrationAdminOnly {
+			s.writeJSON(w, http.StatusOK, map[string]any{"available": true})
+			return
+		}
+	}
 	u := strings.TrimSpace(r.URL.Query().Get("username"))
 	if u == "" {
 		s.writeJSON(w, http.StatusOK, map[string]any{"available": false, "reason": "invalid_length"})
@@ -132,6 +143,15 @@ func (s *Server) APIAuthLogin(w http.ResponseWriter, r *http.Request) {
 		s.writeJSONError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
+	// The per-name limit is looser: it slows guessing from many addresses without letting a single
+	// client lock somebody out.
+	ipKey := "login-ip:" + s.clientIP(r)
+	name := strings.ToLower(strings.TrimSpace(req.Username))
+	nameKey := "login-name:" + name[:min(len(name), 256)] // bounded: it is kept in memory
+	if !s.limits.allow(ipKey, 10, 15*time.Minute) || !s.limits.allow(nameKey, 50, 15*time.Minute) {
+		s.tooManyRequests(w)
+		return
+	}
 	u, err := s.Auth.Login(r.Context(), strings.TrimSpace(req.Username), req.Password)
 	if err != nil {
 		if errors.Is(err, domain.ErrUnauthorized) {
@@ -142,6 +162,8 @@ func (s *Server) APIAuthLogin(w http.ResponseWriter, r *http.Request) {
 		s.writeJSONError(w, http.StatusInternalServerError, "server error")
 		return
 	}
+	s.limits.refund(ipKey)
+	s.limits.refund(nameKey)
 	if err := middleware.IssueSessionCookie(w, s.JWTSecret, u, s.Config.CookieSecure); err != nil {
 		s.Log.Error("issue cookie", "err", err)
 		s.writeJSONError(w, http.StatusInternalServerError, "server error")
@@ -154,8 +176,14 @@ func (s *Server) APIAuthLogin(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": next})
 }
 
-// APIAuthLogout clears session (auth required by mux).
+// APIAuthLogout ends all sessions of the user (auth required by mux): a copied token must not outlive the logout.
 func (s *Server) APIAuthLogout(w http.ResponseWriter, r *http.Request) {
+	if u, ok := middleware.User(r.Context()); ok {
+		if _, err := s.Users.BumpSessionVersion(r.Context(), u.ID); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
 	middleware.ClearSessionCookie(w, s.Config.CookieSecure)
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/login"})
 }
@@ -175,37 +203,17 @@ func (s *Server) APIAuthRegister(w http.ResponseWriter, r *http.Request) {
 		s.writeJSONError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	n, err := s.Users.Count(ctx)
-	if err != nil {
-		s.writeJSONError(w, http.StatusInternalServerError, "server error")
+	if !s.limits.allow("register-ip:"+s.clientIP(r), 10, time.Hour) {
+		s.tooManyRequests(w)
 		return
 	}
-	invite := strings.TrimSpace(req.Invite)
-	mode, hasMode, _ := s.AuthSettingsMode(ctx)
-	if n > 0 {
-		if !hasMode {
-			mode = domain.RegistrationAdminOnly
-		}
-		switch mode {
-		case domain.RegistrationAdminOnly:
-			s.writeJSONError(w, http.StatusForbidden, "Registration is closed.")
-			return
-		case domain.RegistrationInvite:
-			if invite == "" {
-				s.writeJSONError(w, http.StatusForbidden, "invite token required")
-				return
-			}
-			if _, err := s.Invites.GetByToken(ctx, invite); err != nil {
-				s.writeJSONError(w, http.StatusForbidden, "invalid invite")
-				return
-			}
-		}
-	}
-	u, err := s.Auth.Register(ctx, req.Username, req.Email, req.Password, invite)
+	u, err := s.Auth.Register(ctx, req.Username, req.Email, req.Password, strings.TrimSpace(req.Invite))
 	if err != nil {
 		switch {
 		case errors.Is(err, domain.ErrRegistrationClosed):
 			s.writeJSONError(w, http.StatusForbidden, "Registration is closed.")
+		case errors.Is(err, domain.ErrInvalidSetupToken):
+			s.writeJSONError(w, http.StatusForbidden, "Invalid or missing setup token. You find it in the server log.")
 		case errors.Is(err, domain.ErrInvalidInvite):
 			s.writeJSONError(w, http.StatusForbidden, "Invalid or expired invite.")
 		case errors.Is(err, domain.ErrConflict):

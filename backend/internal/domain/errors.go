@@ -9,6 +9,7 @@ var (
 	ErrUnauthorized           = errors.New("unauthorized")
 	ErrForbidden              = errors.New("forbidden")
 	ErrInvalidInvite          = errors.New("invalid or expired invite")
+	ErrInvalidSetupToken      = errors.New("invalid setup token")
 	ErrRegistrationClosed     = errors.New("registration is not allowed")
 	ErrInvalidCurrentPassword = errors.New("invalid current password")
 )

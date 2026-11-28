@@ -14,7 +14,9 @@ Copy [`.env.example`](../.env.example) as a starting point.
 | `FINDUS_DATA_DIR` | `./data` | Root directory for the SQLite database and `images/` folder. Set to `/data` inside the official container. |
 | `FINDUS_BASE_URL` | `http://localhost:8080` | **Canonical public URL** — no trailing slash. Embedded verbatim in every QR code as `{BASE_URL}/q/{token}`. Must match what users type in the browser. |
 | `FINDUS_JWT_SECRET` | *(empty)* | HS256 signing secret for session JWTs. If empty, Findus auto-generates a secret and persists it as `$DATA_DIR/.jwt_secret`. Rotating this value invalidates all active sessions. |
-| `FINDUS_COOKIE_SECURE` | `false` | Set `true` to mark session cookies as `Secure`. Required for HTTPS deployments; breaks login on plain HTTP. |
+| `FINDUS_COOKIE_SECURE` | `true` if `FINDUS_BASE_URL` is `https://…`, else `false` | Marks cookies as `Secure`, gives them the `__Host-` prefix and sends HSTS. Breaks login on plain HTTP. |
+| `FINDUS_TRUST_PROXY` | `false` | Take the client IP for rate limits from the **last** `X-Forwarded-For` entry. Set `true` only behind a reverse proxy that sets this header and when Findus is not reachable directly. With two proxies in a row (e.g. CDN → nginx) the inner one has to pass on the real client IP. |
+| `FINDUS_SETUP_TOKEN` | *(random)* | Required to create the first (admin) account. If empty, a one-time setup link is written to the log at startup. |
 | `FINDUS_LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error` |
 | `FINDUS_LOG_FORMAT` | `text` | `text` — human-readable `key=value` lines. `json` — structured JSON (recommended for log aggregators and Docker logging drivers). |
 
@@ -32,11 +34,23 @@ Findus does not handle TLS itself. Terminate HTTPS at a reverse proxy and forwar
 FINDUS_BASE_URL=https://findus.example.com
 ```
 
-**Step 3** — Enable the Secure cookie flag:
+**Step 3** — Secure cookies and HSTS switch on automatically with an `https://` base URL. Do not set `FINDUS_COOKIE_SECURE=false`.
+
+**Step 4** — Let the proxy set `X-Forwarded-For` (Caddy does by default; nginx: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`) and set:
 
 ```env
-FINDUS_COOKIE_SECURE=true
+FINDUS_TRUST_PROXY=true
 ```
+
+Without it, all visitors share the proxy's IP and therefore one rate limit. Keep the Findus port unreachable from outside: the Compose files bind it to `127.0.0.1`.
+
+---
+
+## Public hosting
+
+- Keep the registration mode on **admin only** or **invite**. Every account can read the whole inventory including attachments, so **open** registration publishes it to anyone.
+- Failed logins are limited to 10 per client and 50 per username in 15 minutes, registrations to 10 per client and hour.
+- Logging out, changing the password, deactivating a user or changing a role ends all of that user's sessions. A password change or deactivation also revokes the MCP token.
 
 > **Why `FINDUS_BASE_URL` matters:** every QR code encodes the URL `{FINDUS_BASE_URL}/q/{token}`. If this is wrong, scanning a code opens the wrong host or scheme. This is the most common misconfiguration for LAN or HTTPS deployments.
 
@@ -83,11 +97,12 @@ Both Compose files mount a named Docker volume at `/data` and use the same envir
 # Public URL — must match what users type in the browser
 FINDUS_BASE_URL=https://findus.example.com
 
-# Required for HTTPS
-FINDUS_COOKIE_SECURE=true
+# Behind a reverse proxy that sets X-Forwarded-For
+FINDUS_TRUST_PROXY=true
 
 # Recommended: set an explicit secret so it survives container recreations
-FINDUS_JWT_SECRET=change-me-to-a-long-random-string
+# generate with: openssl rand -hex 32
+FINDUS_JWT_SECRET=
 
 # Structured logs for Docker log driver / aggregator
 FINDUS_LOG_FORMAT=json

@@ -1,5 +1,7 @@
 export function csrfToken(): string {
-  const m = document.cookie.match(/(?:^|; )findus_csrf=([^;]*)/);
+  // Behind HTTPS the server uses the __Host- name; it wins, because only the unprefixed cookie can be planted.
+  const m =
+    document.cookie.match(/(?:^|; )__Host-findus_csrf=([^;]*)/) ?? document.cookie.match(/(?:^|; )findus_csrf=([^;]*)/);
   return m ? decodeURIComponent(m[1]) : "";
 }
 

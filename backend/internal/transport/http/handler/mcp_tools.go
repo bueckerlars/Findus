@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -76,10 +74,7 @@ func (s *Server) runMCPTool(ctx context.Context, t mcpTool, scopes []string, raw
 	}
 	out, err := t.run(ctx, func(sc string) bool { return slices.Contains(scopes, sc) }, args)
 	if err != nil {
-		if !errors.Is(err, domain.ErrValidation) && !errors.Is(err, domain.ErrNotFound) && !errors.Is(err, domain.ErrConflict) {
-			s.Log.Error("mcp tool", "tool", t.Name, "err", err)
-		}
-		return fail(err.Error())
+		return fail(s.clientMessage(err))
 	}
 	if c, ok := out.(mcpContent); ok {
 		return map[string]any{"content": []any{c}}
@@ -403,7 +398,11 @@ func (s *Server) mcpTools() []mcpTool {
 				if it.PhotoPath == nil || *it.PhotoPath == "" {
 					return nil, fmt.Errorf("photo: %w", domain.ErrNotFound)
 				}
-				b, err := os.ReadFile(filepath.Join(s.Config.DataDir, filepath.FromSlash(*it.PhotoPath)))
+				p, err := service.DataFile(s.Config.DataDir, "images", *it.PhotoPath)
+				if err != nil {
+					return nil, err
+				}
+				b, err := os.ReadFile(p)
 				if err != nil {
 					return nil, err
 				}
@@ -628,7 +627,11 @@ func (s *Server) mcpTools() []mcpTool {
 				if att.ItemID != a.ItemID {
 					return nil, domain.ErrNotFound
 				}
-				f, err := os.Open(filepath.Join(s.Config.DataDir, filepath.FromSlash(att.StoragePath)))
+				p, err := service.DataFile(s.Config.DataDir, "item-attachments", att.StoragePath)
+				if err != nil {
+					return nil, err
+				}
+				f, err := os.Open(p)
 				if err != nil {
 					return nil, err
 				}

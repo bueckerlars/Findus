@@ -8,8 +8,8 @@ This guide is for contributors and anyone running Findus **from source** without
 
 | Tool | Minimum version | Purpose |
 |---|---|---|
-| [Go](https://go.dev/dl/) | 1.23 | Backend compiler and toolchain |
-| [Node.js](https://nodejs.org/) | 20 | Frontend build (Vite + Vue + Tailwind) |
+| [Go](https://go.dev/dl/) | 1.26 | Backend compiler and toolchain |
+| [Node.js](https://nodejs.org/) | 22 | Frontend build (Vite + Vue + Tailwind) |
 | npm | bundled with Node | Frontend package manager |
 
 > A production binary embeds the pre-built `frontend/dist/`. You must run the frontend build at least once before `go build` or `go run` will succeed.
