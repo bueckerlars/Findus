@@ -5,12 +5,12 @@ import { useI18n } from "vue-i18n";
 import { api, postJson } from "../api";
 import { toast } from "../composables/useToast";
 import FxAlert from "../components/primitives/FxAlert.vue";
+import LocationPicker from "../components/LocationPicker.vue";
 import FxButton from "../components/primitives/FxButton.vue";
 import FxPageHeader from "../components/primitives/FxPageHeader.vue";
 
 const { t } = useI18n();
 
-type LocOpt = { ID: string; Label: string };
 type Location = { ID: string; Name: string; Description: string };
 
 const route = useRoute();
@@ -20,15 +20,13 @@ const id = computed(() => route.params.id as string);
 const name = ref("");
 const description = ref("");
 const parentId = ref("");
-const parentOptions = ref<LocOpt[]>([]);
 const err = ref("");
 
 async function load() {
   err.value = "";
-  const r = await api<{ location: Location; parent_options: LocOpt[]; selected_parent: string }>("/api/locations/" + id.value + "/edit");
+  const r = await api<{ location: Location; selected_parent: string }>("/api/locations/" + id.value + "/edit");
   name.value = r.location.Name;
   description.value = r.location.Description;
-  parentOptions.value = r.parent_options;
   parentId.value = r.selected_parent;
 }
 
@@ -71,9 +69,14 @@ async function save() {
       </div>
       <div>
         <label class="fx-label" for="lp">{{ $t("common.parent") }}</label>
-        <select id="lp" v-model="parentId" class="fx-input">
-          <option v-for="o in parentOptions" :key="o.ID || 'root'" :value="o.ID">{{ o.Label }}</option>
-        </select>
+        <LocationPicker
+          id="lp"
+          :key="id"
+          v-model="parentId"
+          :disabled-id="id"
+          disable-subtree
+          :none-label="$t('locationPicker.topLevel')"
+        />
       </div>
       <FxButton type="submit" icon-left="check">{{ $t("common.save") }}</FxButton>
     </form>

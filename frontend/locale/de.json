@@ -844,6 +844,7 @@
     }
   },
   "locationPicker": {
+    "topLevel": "Oberste Ebene",
     "placeholder": "Standort wählen …",
     "search": "Standort suchen …",
     "noMatch": "Kein Standort gefunden",

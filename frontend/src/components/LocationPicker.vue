@@ -9,6 +9,10 @@ const props = defineProps<{
   id: string;
   /** Location that is shown but cannot be picked. */
   disabledId?: string;
+  /** Also blocks everything below disabledId, e.g. when choosing a parent for it. */
+  disableSubtree?: boolean;
+  /** Adds a first entry with this label and an empty value, e.g. "Top level". */
+  noneLabel?: string;
 }>();
 const emit = defineEmits<{ "update:modelValue": [string] }>();
 
@@ -23,7 +27,10 @@ const open = ref(false);
 const query = ref("");
 const expanded = ref(new Set<string>());
 
-const selectedPath = computed(() => locationChain(tree.value, props.modelValue).map((n) => n.Name).join(" / "));
+const selectedPath = computed(() => {
+  if (!props.modelValue) return props.noneLabel ?? "";
+  return locationChain(tree.value, props.modelValue).map((n) => n.Name).join(" / ");
+});
 const searching = computed(() => query.value.trim() !== "");
 const rows = computed(() => locationRows(tree.value, expanded.value, query.value));
 
@@ -58,14 +65,19 @@ function hide() {
   trigger.value?.focus();
 }
 
+function isDisabled(id: string) {
+  if (!props.disableSubtree) return id === props.disabledId;
+  return locationChain(tree.value, id).some((n) => n.ID === props.disabledId);
+}
+
 function pick(id: string) {
-  if (id === props.disabledId) return;
+  if (isDisabled(id)) return;
   emit("update:modelValue", id);
   hide();
 }
 
 function pickFirstMatch() {
-  const first = rows.value.find((r) => r.id !== props.disabledId);
+  const first = rows.value.find((r) => !isDisabled(r.id));
   if (searching.value && first) pick(first.id);
 }
 
@@ -126,6 +138,18 @@ onUnmounted(unlisten);
         />
       </div>
       <ul ref="list" class="max-h-64 overflow-y-auto overscroll-contain py-1">
+        <li v-if="noneLabel && !searching" class="px-1">
+          <button
+            type="button"
+            class="flex min-h-9 w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-zinc-800 hover:bg-zinc-100"
+            :class="modelValue ? '' : 'font-semibold'"
+            :aria-current="modelValue ? undefined : 'true'"
+            @click="pick('')"
+          >
+            <span>{{ noneLabel }}</span>
+            <FxSvg v-if="!modelValue" name="check" class="h-4 w-4 shrink-0 text-sky-600" />
+          </button>
+        </li>
         <li v-for="r in rows" :key="r.id" class="flex items-center gap-1 px-1" :style="{ paddingLeft: searching ? undefined : `${r.depth * 1.25 + 0.25}rem` }">
           <button
             v-if="!searching && r.hasKids"
@@ -143,7 +167,7 @@ onUnmounted(unlisten);
             class="flex min-h-9 min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             :class="r.id === modelValue ? 'font-semibold' : ''"
             :aria-current="r.id === modelValue ? 'true' : undefined"
-            :disabled="r.id === disabledId"
+            :disabled="isDisabled(r.id)"
             @click="pick(r.id)"
           >
             <span class="min-w-0 break-words">{{ searching ? r.path : r.name }}</span>
