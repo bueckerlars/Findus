@@ -28,7 +28,7 @@ const busy = ref(false);
 const resources = computed(() => [...new Set((state.value?.all_scopes ?? []).map((s) => s.split(".")[0]!))]);
 const clientCommand = computed(
   () =>
-    `claude mcp add --transport http findus ${state.value?.url ?? ""} --header "Authorization: Bearer ${token.value}"`,
+    `claude mcp add --transport http findus ${state.value?.url ?? ""} --header "X-API-Key: ${token.value}"`,
 );
 
 async function run(request: () => Promise<McpSettings>, success?: string) {

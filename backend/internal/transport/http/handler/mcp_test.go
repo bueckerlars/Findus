@@ -66,7 +66,7 @@ func TestMCPTogglesAndCRUD(t *testing.T) {
 		body, err := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
 		require.NoError(t, err)
 		req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(string(body)))
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-API-Key", token)
 		rr := httptest.NewRecorder()
 		h.ServeHTTP(rr, req)
 		var out map[string]any
