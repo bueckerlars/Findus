@@ -24,9 +24,14 @@ type mcpRequest struct {
 	Params  json.RawMessage `json:"params"`
 }
 
-// mcpAuth resolves the X-API-Key token to an active user and returns a ctx carrying their rights plus the enabled scopes.
+// mcpAuth resolves the token (X-API-Key or Authorization: Bearer, clients differ in what they can send) to an active user and returns a ctx carrying their rights plus the enabled scopes.
 func (s *Server) mcpAuth(r *http.Request) (context.Context, []string, bool) {
 	token := r.Header.Get("X-API-Key")
+	if token == "" {
+		if scheme, t, _ := strings.Cut(r.Header.Get("Authorization"), " "); strings.EqualFold(scheme, "Bearer") {
+			token = t
+		}
+	}
 	if !strings.HasPrefix(token, mcpTokenPrefix) {
 		return nil, nil, false
 	}
