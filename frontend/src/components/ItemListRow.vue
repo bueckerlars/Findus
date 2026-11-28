@@ -43,8 +43,10 @@ withDefaults(
       >
         <img
           v-if="photoPath"
-          :src="'/items/' + id + '/photo'"
+          :src="'/items/' + id + '/photo?size=thumb'"
           alt=""
+          loading="lazy"
+          decoding="async"
           class="h-full w-full object-cover"
           @error="($event.target as HTMLImageElement).style.display = 'none'"
         />

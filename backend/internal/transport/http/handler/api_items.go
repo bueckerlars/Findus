@@ -318,6 +318,7 @@ func (s *Server) deleteItem(ctx context.Context, id string) error {
 	it, err := s.Items.GetByID(ctx, id)
 	if err == nil && it.PhotoPath != nil {
 		_ = os.Remove(filepath.Join(s.Config.DataDir, filepath.FromSlash(*it.PhotoPath)))
+		_ = os.Remove(service.ItemThumbnailPath(s.Config.DataDir, it.ID))
 	}
 	if err := s.Inventory.DeleteItem(ctx, id); err != nil {
 		return err

@@ -182,6 +182,7 @@
     "emptyItemsHere": "No items in this place yet"
   },
   "itemDetail": {
+    "viewPhoto": "View full photo",
     "backItems": "← All items",
     "breadcrumbItems": "Items",
     "replacePhoto": "Replace photo",
