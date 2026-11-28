@@ -54,7 +54,11 @@ unzip findus-backup-1715123456.zip -d /tmp/findus-restore
 
 The data directory is `FINDUS_DATA_DIR` — `/data` inside the Docker volume by default.
 
+Delete `findus.db-wal` and `findus.db-shm` first if they exist. They belong to the old database, and SQLite would apply them to the restored one.
+
 ```bash
+rm -f $DATA_DIR/findus.db-wal $DATA_DIR/findus.db-shm
+
 # Place the database at the root of the data directory
 cp /tmp/findus-restore/findus.db $DATA_DIR/findus.db
 
@@ -69,7 +73,7 @@ docker run --rm \
   -v findus_data:/data \
   -v /tmp/findus-restore:/restore \
   busybox \
-  sh -c "cp /restore/findus.db /data/findus.db && cp -r /restore/images /data/images"
+  sh -c "rm -f /data/findus.db-wal /data/findus.db-shm && cp /restore/findus.db /data/findus.db && cp -r /restore/images /data/images"
 ```
 
 ### 4 — Start the instance

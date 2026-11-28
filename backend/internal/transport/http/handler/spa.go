@@ -197,7 +197,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	return middleware.Chain(mux,
 		middleware.AuthOptional(s.Users, s.Groups, s.JWTSecret, s.Config.CookieSecure),
 		middleware.CSRF(s.Config.CookieSecure),
-		middleware.RequestLog(s.Log),
+		middleware.RequestLog(s.Log, s.DB),
 		middleware.Recover(s.Log),
 	), nil
 }
