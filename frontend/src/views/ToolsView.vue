@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { api, csrfToken } from "../api";
 import { useI18n } from "vue-i18n";
 import { toast } from "../composables/useToast";
@@ -33,6 +33,25 @@ const sheetValid = computed(
       return Number.isFinite(v) && v >= 0;
     }),
 );
+
+const sheetStorageKey = "findus.labelSheet";
+try {
+  const saved = JSON.parse(localStorage.getItem(sheetStorageKey) ?? "null");
+  // Take over only known keys with the expected type, so stale or broken data cannot break the form.
+  for (const key of Object.keys(sheet) as (keyof typeof sheet)[]) {
+    if (typeof saved?.[key] === typeof sheet[key]) Object.assign(sheet, { [key]: saved[key] });
+  }
+} catch {
+  /* storage unavailable or corrupt: keep defaults */
+}
+watch(sheet, () => {
+  if (!sheetValid.value) return; // keep the last usable layout while a field is being edited
+  try {
+    localStorage.setItem(sheetStorageKey, JSON.stringify(sheet));
+  } catch {
+    /* storage unavailable: layout just is not remembered */
+  }
+});
 
 // --- Item label generator ---
 const from = ref(1);

@@ -372,7 +372,7 @@
     "margin_bottom": "Rand unten (mm)",
     "margin_left": "Rand links (mm)",
     "hideBorder": "Rahmen ausblenden",
-    "layoutHint": "Ränder eines A4-Bogens; die Fläche dazwischen wird gleichmäßig in Spalten und Zeilen geteilt. Beim Drucken „Tatsächliche Größe“ (100 %) wählen.",
+    "layoutHint": "Ränder eines A4-Bogens; die Fläche dazwischen wird gleichmäßig in Spalten und Zeilen geteilt. Beim Drucken „Tatsächliche Größe“ (100 %) wählen. Das Layout wird in diesem Browser gespeichert.",
     "itemTitle": "Artikel-Labels"
   },
   "adminTemplates": {
