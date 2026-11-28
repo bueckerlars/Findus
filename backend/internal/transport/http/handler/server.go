@@ -138,35 +138,48 @@ func (s *Server) ProfilePhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) QRedirect(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	token := strings.TrimSpace(r.PathValue("token"))
-	if token == "" {
+	target, ok := s.resolveQRToken(r.Context(), strings.TrimSpace(r.PathValue("token")))
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	if loc, err := s.Locs.GetByQRToken(ctx, token); err == nil {
-		http.Redirect(w, r, "/locations/"+loc.ID, http.StatusFound)
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
+// APIQRResolve is the JSON form of QRedirect for the in-app scanner.
+func (s *Server) APIQRResolve(w http.ResponseWriter, r *http.Request) {
+	target, ok := s.resolveQRToken(r.Context(), strings.TrimSpace(r.PathValue("token")))
+	if !ok {
+		s.writeJSONError(w, http.StatusNotFound, "not found")
 		return
 	}
+	s.writeJSON(w, http.StatusOK, map[string]string{"target": target})
+}
+
+// resolveQRToken returns the app path a scanned token points to.
+func (s *Server) resolveQRToken(ctx context.Context, token string) (string, bool) {
+	if token == "" {
+		return "", false
+	}
+	if loc, err := s.Locs.GetByQRToken(ctx, token); err == nil {
+		return "/locations/" + loc.ID, true
+	}
 	if it, err := s.Items.GetByQRToken(ctx, token); err == nil {
-		http.Redirect(w, r, "/items/"+it.ID, http.StatusFound)
-		return
+		return "/items/" + it.ID, true
 	}
 	if s.ItemQRTokens != nil {
 		itemID, ok, err := s.ItemQRTokens.GetItemIDByToken(ctx, token)
 		if err == nil && ok {
 			it, itemErr := s.Items.GetByID(ctx, itemID)
 			if itemErr == nil {
-				http.Redirect(w, r, "/items/"+it.ID, http.StatusFound)
-				return
+				return "/items/" + it.ID, true
 			}
 			if errors.Is(itemErr, domain.ErrNotFound) {
-				http.Redirect(w, r, "/items/new?qr="+url.QueryEscape(token), http.StatusFound)
-				return
+				return "/items/new?qr=" + url.QueryEscape(token), true
 			}
 		}
 	}
-	http.NotFound(w, r)
+	return "", false
 }
 
 func (s *Server) LocationQR(w http.ResponseWriter, r *http.Request) {

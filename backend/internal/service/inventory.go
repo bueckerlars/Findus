@@ -271,6 +271,23 @@ func (s *Inventory) UpdateItem(ctx context.Context, id, name, description, locat
 	return it, nil
 }
 
+// MoveItem puts an item into another location and leaves everything else untouched.
+func (s *Inventory) MoveItem(ctx context.Context, id, locationID string) error {
+	it, err := s.Items.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if _, err := s.Locations.GetByID(ctx, locationID); err != nil {
+		return err
+	}
+	it.LocationID = locationID
+	it.UpdatedAt = time.Now().UTC()
+	if err := s.Items.Update(ctx, it); err != nil {
+		return err
+	}
+	return s.refreshItemSearchDenorm(ctx, it.ID)
+}
+
 func (s *Inventory) DeleteItem(ctx context.Context, id string) error {
 	return s.Items.Delete(ctx, id)
 }

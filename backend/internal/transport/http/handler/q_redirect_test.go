@@ -68,6 +68,12 @@ func TestQRedirectResolvesReservedTokenAfterItemCreation(t *testing.T) {
 	require.Equal(t, http.StatusFound, rrBefore.Code)
 	require.Equal(t, "/items/new?qr="+token, rrBefore.Header().Get("Location"))
 
+	mux.HandleFunc("GET /api/qr/{token}", srv.APIQRResolve)
+	rrAPI := httptest.NewRecorder()
+	mux.ServeHTTP(rrAPI, httptest.NewRequest(http.MethodGet, "/api/qr/"+token, nil))
+	require.Equal(t, http.StatusOK, rrAPI.Code)
+	require.JSONEq(t, `{"target":"/items/new?qr=`+token+`"}`, rrAPI.Body.String())
+
 	rrUnknown := httptest.NewRecorder()
 	mux.ServeHTTP(rrUnknown, httptest.NewRequest(http.MethodGet, "/q/unknown", nil))
 	require.Equal(t, http.StatusNotFound, rrUnknown.Code)
@@ -79,6 +85,16 @@ func TestQRedirectResolvesReservedTokenAfterItemCreation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "item_0001", created.ID)
 	require.Equal(t, token, created.QRToken)
+
+	other, err := inv.CreateLocation(ctx, "Elsewhere", "", nil)
+	require.NoError(t, err)
+	require.NoError(t, inv.MoveItem(ctx, created.ID, other.ID))
+	moved, err := items.GetByID(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, other.ID, moved.LocationID)
+	require.Equal(t, created.Name, moved.Name)
+	require.Equal(t, token, moved.QRToken)
+	require.Error(t, inv.MoveItem(ctx, created.ID, "missing"))
 
 	rrAfter := httptest.NewRecorder()
 	reqAfter := httptest.NewRequest(http.MethodGet, "/q/"+token, nil)

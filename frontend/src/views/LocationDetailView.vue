@@ -20,6 +20,7 @@ import FxEmptyState from "../components/primitives/FxEmptyState.vue";
 import FxButton from "../components/primitives/FxButton.vue";
 import ItemListRow from "../components/ItemListRow.vue";
 import ItemGalleryCard from "../components/ItemGalleryCard.vue";
+import QrScanModal from "../components/QrScanModal.vue";
 
 type Location = { ID: string; Name: string; Description: string; ParentID?: string | null };
 type Item = { ID: string; Name: string; Description: string; PhotoPath?: string | null };
@@ -34,6 +35,7 @@ const { openCreateItem, openCreateLocation } = useCreateModals();
 const { t, locale } = useI18n();
 
 const loc = ref<Location | null>(null);
+const scanning = ref(false);
 const children = ref<Location[]>([]);
 const items = ref<Item[]>([]);
 const breadcrumb = ref<Crumb[]>([]);
@@ -50,6 +52,7 @@ const itemsViewKey = computed(() => "location_items_" + id.value);
 
 onMounted(load);
 watch(id, () => {
+  scanning.value = false;
   void load();
 });
 async function load() {
@@ -192,6 +195,9 @@ async function del() {
         <h2 class="text-base font-semibold text-zinc-900">{{ $t("locationDetail.inside") }}</h2>
         <button
           v-if="canManageLocations"
+          type="button"
+          class="text-sm font-medium text-sky-600 hover:text-sky-700"
+          @click="openCreateLocation({ parentId: loc.ID })"
         >
           {{ $t("locationDetail.addSub") }}
         </button>
@@ -215,8 +221,15 @@ async function del() {
           <h2 class="text-base font-semibold text-zinc-900">{{ $t("locationDetail.itemsHere") }}</h2>
           <div class="flex flex-wrap items-center gap-2">
             <ItemsViewModeToolbar />
+            <button type="button" class="fx-btn-secondary inline-flex items-center gap-1.5" @click="scanning = true">
+              <FxSvg name="qr" />
+              {{ $t("qrScan.button") }}
+            </button>
             <button
               v-if="canCreateItemsHere"
+              type="button"
+              class="text-sm font-medium text-sky-600 hover:text-sky-700"
+              @click="openCreateItem({ locationId: loc.ID })"
             >
               {{ $t("locationDetail.addItem") }}
             </button>
@@ -242,5 +255,7 @@ async function del() {
       </div>
       <FxEmptyState v-else class="mt-4" icon="cube" :title="$t('locationDetail.emptyItemsHere')" />
     </ItemsViewToggle>
+
+    <QrScanModal v-if="scanning" :location-id="loc.ID" :location-name="loc.Name" @close="scanning = false" @moved="load" />
   </div>
 </template>
