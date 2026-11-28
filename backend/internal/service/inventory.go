@@ -145,7 +145,7 @@ func (s *Inventory) CreateItem(ctx context.Context, name, description, locationI
 }
 
 // CreateItemFromQR creates the item a printed label reserved qrToken for, using the ID on that label.
-// An empty qrToken allocates the next ID.
+// An empty qrToken takes the first ID that no printed label reserved.
 func (s *Inventory) CreateItemFromQR(ctx context.Context, qrToken, name, description, locationID string, tt domain.TemplateType, td, additional json.RawMessage, labelIDs []string) (*domain.Item, error) {
 	reservedID := ""
 	if qrToken != "" {
@@ -184,14 +184,15 @@ func (s *Inventory) CreateItemFromQR(ctx context.Context, qrToken, name, descrip
 	now := time.Now().UTC()
 	var it *domain.Item
 	var createErr error
-	for attempt := 0; attempt < DefaultLabelBatchLimit+24; attempt++ {
-		itemID := reservedID
-		if itemID == "" {
-			next, err := s.allocateNextItemID(ctx)
+	// Retries cover a concurrent create taking the same free ID.
+	for attempt := 0; attempt < 12; attempt++ {
+		itemID, token := reservedID, qrToken
+		if reservedID == "" {
+			next, err := s.firstFreeItemID(ctx)
 			if err != nil {
 				return nil, err
 			}
-			itemID = next
+			itemID, token = next, newID()
 		}
 		cand := &domain.Item{
 			ID:             itemID,
@@ -201,39 +202,20 @@ func (s *Inventory) CreateItemFromQR(ctx context.Context, qrToken, name, descrip
 			TemplateType:   tt,
 			TemplateData:   td,
 			AdditionalData: additional,
-			QRToken:        newID(),
+			QRToken:        token,
 			CreatedAt:      now,
 			UpdatedAt:      now,
-		}
-		if s.ItemQRTokens != nil {
-			reservedToken, ok, err := s.ItemQRTokens.GetTokenByItemID(ctx, itemID)
-			if err != nil {
-				return nil, err
-			}
-			if ok {
-				cand.QRToken = reservedToken
-			}
 		}
 		createErr = s.Items.Create(ctx, cand)
 		if createErr == nil {
 			it = cand
-			if err := s.sequentialBumpAfterSuccessfulCreate(ctx, itemID); err != nil {
-				return nil, err
-			}
 			break
 		}
 		if reservedID != "" || !isSQLiteUniqueViolation(createErr) {
 			return nil, createErr
 		}
-		// The ID may be taken by an item created from its label ahead of the counter.
-		if err := s.sequentialBumpAfterSuccessfulCreate(ctx, itemID); err != nil {
-			return nil, err
-		}
 	}
 	if it == nil {
-		if createErr == nil {
-			createErr = fmt.Errorf("%w: item id", domain.ErrValidation)
-		}
 		return nil, createErr
 	}
 	if err := s.Items.ReplaceItemLabels(ctx, it.ID, ids); err != nil {

@@ -86,28 +86,30 @@ func TestQRedirectResolvesReservedTokenAfterItemCreation(t *testing.T) {
 	require.Equal(t, http.StatusFound, rrAfter.Code)
 	require.Equal(t, "/items/item_0001", rrAfter.Header().Get("Location"))
 
-	// A label scanned ahead of the counter keeps its ID, and normal creation skips over it.
+	// Creation without a scan leaves reserved IDs to their labels; each label still creates its own item.
 	token2, _, err := reservations.GetTokenByItemID(ctx, "item_0002")
 	require.NoError(t, err)
 	create := func(qrToken string) (*domain.Item, error) {
 		return inv.CreateItemFromQR(ctx, qrToken, "x", "", locID, domain.TemplateType("standard"), []byte(`{}`), []byte(`{}`), nil)
 	}
+	unlabeled, err := create("")
+	require.NoError(t, err)
+	require.Equal(t, "item_0003", unlabeled.ID)
+	second, err := create(token2)
+	require.NoError(t, err)
+	require.Equal(t, "item_0002", second.ID)
+	require.Equal(t, token2, second.QRToken)
+	_, err = create(token2)
+	require.Error(t, err)
+	_, err = create("unknown")
+	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	// A label printed later for an unlabeled item resolves to that item.
 	_, err = gen.Generate(ctx, service.LabelPDFInput{From: 3, To: 3, Policy: pol})
 	require.NoError(t, err)
 	token3, _, err := reservations.GetTokenByItemID(ctx, "item_0003")
 	require.NoError(t, err)
-	ahead, err := create(token3)
-	require.NoError(t, err)
-	require.Equal(t, "item_0003", ahead.ID)
-	_, err = create(token3)
-	require.Error(t, err)
-	_, err = create("unknown")
-	require.ErrorIs(t, err, domain.ErrNotFound)
-	second, err := create("")
-	require.NoError(t, err)
-	require.Equal(t, "item_0002", second.ID)
-	require.Equal(t, token2, second.QRToken)
-	fourth, err := create("")
-	require.NoError(t, err)
-	require.Equal(t, "item_0004", fourth.ID)
+	rrLate := httptest.NewRecorder()
+	mux.ServeHTTP(rrLate, httptest.NewRequest(http.MethodGet, "/q/"+token3, nil))
+	require.Equal(t, "/items/item_0003", rrLate.Header().Get("Location"))
 }

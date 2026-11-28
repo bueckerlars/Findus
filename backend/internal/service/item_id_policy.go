@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -67,7 +68,7 @@ func (s *Inventory) SetItemIDPolicy(ctx context.Context, dataDir string, want do
 		return items[i].ID < items[j].ID
 	})
 
-	rows, nextSeq, err := buildItemIDMigrationRows(items, want)
+	rows, err := buildItemIDMigrationRows(items, want)
 	if err != nil {
 		return fmt.Errorf("build migration: %w", err)
 	}
@@ -101,7 +102,6 @@ func (s *Inventory) SetItemIDPolicy(ctx context.Context, dataDir string, want do
 		}
 	}
 
-	want.NextSeq = nextSeq
 	if err = s.saveItemIDPolicy(ctx, want); err != nil {
 		return fmt.Errorf("save policy: %w", err)
 	}
@@ -127,19 +127,19 @@ func allItemIDsMatchPolicy(items []domain.Item, pol domain.ItemIDPolicy) bool {
 	return true
 }
 
-func buildItemIDMigrationRows(items []domain.Item, pol domain.ItemIDPolicy) ([]domain.ItemIDMigration, int64, error) {
+func buildItemIDMigrationRows(items []domain.Item, pol domain.ItemIDPolicy) ([]domain.ItemIDMigration, error) {
 	pol = pol.Normalize()
 	n := len(items)
 	rows := make([]domain.ItemIDMigration, 0, n)
 	if pol.Kind != domain.ItemIDKindSequential {
-		return nil, 0, fmt.Errorf("%w: kind", domain.ErrValidation)
+		return nil, fmt.Errorf("%w: kind", domain.ErrValidation)
 	}
 	for i, it := range items {
 		seq := int64(i) + 1
 		newID := domain.FormatSequentialID(pol.Prefix, pol.Width, seq)
 		rows = append(rows, itemMigrationRow(it, newID))
 	}
-	return rows, int64(n) + 1, nil
+	return rows, nil
 }
 
 func itemMigrationRow(it domain.Item, newID string) domain.ItemIDMigration {
@@ -195,7 +195,8 @@ func copyItemImagesForMigration(dataDir string, rows []domain.ItemIDMigration) (
 	return created, nil
 }
 
-func (s *Inventory) allocateNextItemID(ctx context.Context) (string, error) {
+// firstFreeItemID returns the lowest ID that no item uses and no printed label reserved.
+func (s *Inventory) firstFreeItemID(ctx context.Context) (string, error) {
 	pol, err := s.GetItemIDPolicy(ctx)
 	if err != nil {
 		return "", err
@@ -204,24 +205,26 @@ func (s *Inventory) allocateNextItemID(ctx context.Context) (string, error) {
 	if pol.Kind != domain.ItemIDKindSequential {
 		return "", fmt.Errorf("%w: kind", domain.ErrValidation)
 	}
-	return domain.FormatSequentialID(pol.Prefix, pol.Width, pol.NextSeq), nil
-}
-
-func (s *Inventory) sequentialBumpAfterSuccessfulCreate(ctx context.Context, issuedID string) error {
-	pol, err := s.GetItemIDPolicy(ctx)
-	if err != nil {
-		return err
+	// shortcut: queries per candidate from 1; load all taken IDs at once if creation gets slow.
+	for seq := int64(1); ; seq++ {
+		id := domain.FormatSequentialID(pol.Prefix, pol.Width, seq)
+		if s.ItemQRTokens != nil {
+			_, reserved, err := s.ItemQRTokens.GetTokenByItemID(ctx, id)
+			if err != nil {
+				return "", err
+			}
+			if reserved {
+				continue
+			}
+		}
+		_, err := s.Items.GetByID(ctx, id)
+		if errors.Is(err, domain.ErrNotFound) {
+			return id, nil
+		}
+		if err != nil {
+			return "", err
+		}
 	}
-	pol = pol.Normalize()
-	if pol.Kind != domain.ItemIDKindSequential {
-		return fmt.Errorf("%w: kind", domain.ErrValidation)
-	}
-	expected := domain.FormatSequentialID(pol.Prefix, pol.Width, pol.NextSeq)
-	if issuedID != expected {
-		return nil
-	}
-	pol.NextSeq++
-	return s.saveItemIDPolicy(ctx, pol)
 }
 
 func isSQLiteUniqueViolation(err error) bool {

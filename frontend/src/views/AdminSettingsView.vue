@@ -11,7 +11,6 @@ const { t } = useI18n();
 type ItemIdPolicy = {
   prefix?: string;
   width?: number;
-  next_seq?: number;
 };
 
 const registrationMode = ref("admin_only");
@@ -34,7 +33,6 @@ async function load() {
     itemIdPolicy.value = {
       prefix: ids.policy.prefix ?? "item",
       width: ids.policy.width && ids.policy.width > 0 ? ids.policy.width : 4,
-      next_seq: ids.policy.next_seq,
     };
     itemCount.value = ids.item_count;
   } catch (e) {

@@ -39,7 +39,6 @@ func runImportWithTx(t *testing.T, ctx context.Context, db *sql.DB, mainInv *ser
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 	require.NoError(t, mainInv.PostInventoryImportSearchRefresh(ctx, bundle))
-	require.NoError(t, mainInv.ReconcileSequentialNextSeqAfterImport(ctx))
 }
 
 func TestInventoryExportImportRoundtripJSON(t *testing.T) {

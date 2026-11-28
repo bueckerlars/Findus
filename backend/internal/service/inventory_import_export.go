@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -398,75 +396,6 @@ func sortLocationsTopo(all []domain.Location) ([]domain.Location, error) {
 		}
 	}
 	return out, nil
-}
-
-// ReconcileSequentialNextSeqAfterImport raises next_seq when imported or existing item IDs exceed the counter.
-func (s *Inventory) ReconcileSequentialNextSeqAfterImport(ctx context.Context) error {
-	if s.Settings == nil || s.Items == nil {
-		return nil
-	}
-	pol, err := s.GetItemIDPolicy(ctx)
-	if err != nil {
-		return err
-	}
-	pol = pol.Normalize()
-	if pol.Kind != domain.ItemIDKindSequential {
-		return nil
-	}
-	items, err := s.Items.ListAllExport(ctx)
-	if err != nil {
-		return err
-	}
-	var maxSeq int64
-	for _, it := range items {
-		if seq, ok := parseSequentialItemSeq(it.ID, pol); ok && seq > maxSeq {
-			maxSeq = seq
-		}
-	}
-	want := maxSeq + 1
-	if want < pol.NextSeq {
-		want = pol.NextSeq
-	}
-	if want != pol.NextSeq {
-		pol.NextSeq = want
-		return s.saveItemIDPolicy(ctx, pol)
-	}
-	return nil
-}
-
-func parseSequentialItemSeq(id string, pol domain.ItemIDPolicy) (int64, bool) {
-	pol = pol.Normalize()
-	if pol.Kind != domain.ItemIDKindSequential {
-		return 0, false
-	}
-	prefix := regexp.QuoteMeta(strings.TrimSpace(pol.Prefix))
-	w := pol.Width
-	if prefix == "" || w < 1 {
-		return 0, false
-	}
-	re1, err := regexp.Compile(fmt.Sprintf(`^%s_(\d{%d})$`, prefix, w))
-	if err != nil {
-		return 0, false
-	}
-	if m := re1.FindStringSubmatch(strings.TrimSpace(id)); len(m) == 2 {
-		v, err := strconv.ParseInt(m[1], 10, 64)
-		if err != nil {
-			return 0, false
-		}
-		return v, true
-	}
-	re2, err := regexp.Compile(fmt.Sprintf(`^%s(\d{%d})$`, prefix, w))
-	if err != nil {
-		return 0, false
-	}
-	if m := re2.FindStringSubmatch(strings.TrimSpace(id)); len(m) == 2 {
-		v, err := strconv.ParseInt(m[1], 10, 64)
-		if err != nil {
-			return 0, false
-		}
-		return v, true
-	}
-	return 0, false
 }
 
 // PostInventoryImportSearchRefresh updates denormalized search columns after a committed import.

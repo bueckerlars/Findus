@@ -9,7 +9,7 @@ import (
 )
 
 func TestItemIDMatchesPolicy_Sequential(t *testing.T) {
-	p := domain.ItemIDPolicy{Kind: domain.ItemIDKindSequential, Prefix: "item", Width: 4, NextSeq: 1}
+	p := domain.ItemIDPolicy{Kind: domain.ItemIDKindSequential, Prefix: "item", Width: 4}
 	require.True(t, domain.ItemIDMatchesPolicy("item_0001", p))
 	require.True(t, domain.ItemIDMatchesPolicy("item0001", p)) // legacy (no separator)
 	require.False(t, domain.ItemIDMatchesPolicy("01ARZ3NDEKTSV4RRFFQ69G5FAV", p))
