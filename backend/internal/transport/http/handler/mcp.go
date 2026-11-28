@@ -24,10 +24,10 @@ type mcpRequest struct {
 	Params  json.RawMessage `json:"params"`
 }
 
-// mcpAuth resolves the bearer token to an active user and returns a ctx carrying their rights plus the enabled scopes.
+// mcpAuth resolves the X-API-Key token to an active user and returns a ctx carrying their rights plus the enabled scopes.
 func (s *Server) mcpAuth(r *http.Request) (context.Context, []string, bool) {
-	scheme, token, _ := strings.Cut(r.Header.Get("Authorization"), " ")
-	if !strings.EqualFold(scheme, "Bearer") || !strings.HasPrefix(token, mcpTokenPrefix) {
+	token := r.Header.Get("X-API-Key")
+	if !strings.HasPrefix(token, mcpTokenPrefix) {
 		return nil, nil, false
 	}
 	a, err := s.MCP.GetByTokenHash(r.Context(), hashMCPToken(token))
@@ -57,7 +57,6 @@ func (s *Server) mcpAuth(r *http.Request) (context.Context, []string, bool) {
 func (s *Server) MCPHandle(w http.ResponseWriter, r *http.Request) {
 	ctx, scopes, ok := s.mcpAuth(r)
 	if !ok {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="findus-mcp"`)
 		s.writeJSONError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}

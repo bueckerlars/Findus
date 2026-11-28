@@ -11,7 +11,7 @@ var MCPScopes = []string{
 	"attachments.read", "attachments.create", "attachments.update", "attachments.delete",
 }
 
-// MCPAccess is a user's MCP connection: one bearer token plus the enabled toggles.
+// MCPAccess is a user's MCP connection: one access token plus the enabled toggles.
 type MCPAccess struct {
 	UserID    string
 	TokenHash string
