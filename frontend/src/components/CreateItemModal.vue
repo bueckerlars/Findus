@@ -49,6 +49,9 @@ const addPairs = ref<{ k: string; v: string }[]>([]);
 const photo = ref<File | null>(null);
 const photoPreviewUrl = ref<string | null>(null);
 const photoInputRef = ref<HTMLInputElement | null>(null);
+const cameraInputRef = ref<HTMLInputElement | null>(null);
+// Desktop browsers ignore `capture`, so the camera button is for touch devices only.
+const hasTouchCamera = window.matchMedia("(pointer: coarse)").matches;
 const photoDragging = ref(false);
 const err = ref("");
 const noLocations = ref(false);
@@ -512,6 +515,12 @@ async function submit() {
               <p class="max-w-sm text-xs leading-relaxed text-zinc-500">{{ $t("createItem.photoClickHint") }}</p>
             </div>
           </div>
+          <template v-if="hasTouchCamera">
+            <input ref="cameraInputRef" type="file" accept="image/*" capture="environment" class="hidden" @change="onPhoto" />
+            <button type="button" class="fx-btn-secondary mt-3 w-full" @click="cameraInputRef?.click()">
+              {{ $t("createItem.takePhoto") }}
+            </button>
+          </template>
           <div v-if="photo" class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100/90 pt-3">
             <span class="min-w-0 flex-1 truncate text-xs font-medium text-zinc-600" :title="photo.name">{{ photo.name }}</span>
             <button

@@ -663,6 +663,7 @@
     "createLabelsFirst": "Create labels first under Labels in the sidebar.",
     "noLabels": "No labels",
     "removeLabel": "Remove label {name}",
+    "takePhoto": "Take photo",
     "photoSection": "Photo",
     "photoHelp": "Optional. Drag an image into the area below or click to browse. Common formats such as PNG, JPG, or WebP are supported.",
     "photoDropOrReplace": "Drop or click to replace",

@@ -651,6 +651,7 @@
     "createLabelsFirst": "Legen Sie zuerst Labels unter „Labels“ in der Seitenleiste an.",
     "noLabels": "Keine Labels",
     "removeLabel": "Label {name} entfernen",
+    "takePhoto": "Foto aufnehmen",
     "photoSection": "Foto",
     "photoHelp": "Optional. Ziehen Sie ein Bild in den Bereich unten oder klicken Sie zum Durchsuchen. Unterstützt werden gängige Formate wie PNG, JPG oder WebP.",
     "photoDropOrReplace": "Ablegen oder klicken zum Ersetzen",
