@@ -198,9 +198,8 @@ func (s *Server) APIAdminSettingsItemIDsGet(w http.ResponseWriter, r *http.Reque
 }
 
 type apiAdminItemIDPolicyReq struct {
-	Prefix  string  `json:"prefix"`
-	Width   float64 `json:"width"`
-	NextSeq int64   `json:"next_seq,omitempty"` // accepted for forward-compatible clients; ignored here
+	Prefix string  `json:"prefix"`
+	Width  float64 `json:"width"`
 }
 
 func (s *Server) APIAdminSettingsItemIDsPost(w http.ResponseWriter, r *http.Request) {
@@ -218,16 +217,7 @@ func (s *Server) APIAdminSettingsItemIDsPost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	want.Width = int(req.Width)
-	cur, err := s.Inventory.GetItemIDPolicy(ctx)
-	if err != nil {
-		s.writeJSONError(w, http.StatusInternalServerError, "server error")
-		return
-	}
 	want = want.Normalize()
-	cur = cur.Normalize()
-	if cur.EffectiveKey() == want.EffectiveKey() {
-		want.NextSeq = cur.NextSeq
-	}
 	if err := want.Validate(); err != nil {
 		s.writeJSONError(w, http.StatusBadRequest, err.Error())
 		return

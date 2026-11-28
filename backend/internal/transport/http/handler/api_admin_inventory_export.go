@@ -138,8 +138,5 @@ func (s *Server) APIAdminInventoryImport(w http.ResponseWriter, r *http.Request)
 	if err := s.Inventory.PostInventoryImportSearchRefresh(ctx, bundle); err != nil {
 		s.Log.Error("inventory import search refresh", "err", err)
 	}
-	if err := s.Inventory.ReconcileSequentialNextSeqAfterImport(ctx); err != nil {
-		s.Log.Error("inventory import reconcile item ids", "err", err)
-	}
 	s.writeJSON(w, http.StatusOK, res)
 }

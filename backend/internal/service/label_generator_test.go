@@ -27,10 +27,9 @@ func TestLabelPDFGeneratorGenerate(t *testing.T) {
 		From: 1,
 		To:   6,
 		Policy: domain.ItemIDPolicy{
-			Kind:    domain.ItemIDKindSequential,
-			Prefix:  "item",
-			Width:   4,
-			NextSeq: 1,
+			Kind:   domain.ItemIDKindSequential,
+			Prefix: "item",
+			Width:  4,
 		},
 	})
 	require.NoError(t, err)
@@ -93,10 +92,9 @@ func TestLabelPDFGeneratorReusesReservedToken(t *testing.T) {
 		From: 1,
 		To:   1,
 		Policy: domain.ItemIDPolicy{
-			Kind:    domain.ItemIDKindSequential,
-			Prefix:  "item",
-			Width:   4,
-			NextSeq: 1,
+			Kind:   domain.ItemIDKindSequential,
+			Prefix: "item",
+			Width:  4,
 		},
 	})
 	require.NoError(t, err)

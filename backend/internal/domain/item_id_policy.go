@@ -19,19 +19,17 @@ const (
 
 // ItemIDPolicy is stored as JSON under SettingItemIDPolicy.
 type ItemIDPolicy struct {
-	Kind    ItemIDKind `json:"kind"`
-	Prefix  string     `json:"prefix,omitempty"`
-	Width   int        `json:"width,omitempty"`
-	NextSeq int64      `json:"next_seq,omitempty"`
+	Kind   ItemIDKind `json:"kind"`
+	Prefix string     `json:"prefix,omitempty"`
+	Width  int        `json:"width,omitempty"`
 }
 
 // DefaultItemIDPolicy is used when no setting is stored (new installs).
 func DefaultItemIDPolicy() ItemIDPolicy {
 	return ItemIDPolicy{
-		Kind:    ItemIDKindSequential,
-		Prefix:  "item",
-		Width:   4,
-		NextSeq: 1,
+		Kind:   ItemIDKindSequential,
+		Prefix: "item",
+		Width:  4,
 	}
 }
 
@@ -50,9 +48,6 @@ func (p ItemIDPolicy) Normalize() ItemIDPolicy {
 		}
 		if p.Width > 12 {
 			p.Width = 12
-		}
-		if p.NextSeq < 1 {
-			p.NextSeq = 1
 		}
 		return p
 	default:
@@ -82,9 +77,6 @@ func (p ItemIDPolicy) Validate() error {
 		}
 		if p.Width < 1 || p.Width > 12 {
 			return fmt.Errorf("%w: width", ErrValidation)
-		}
-		if p.NextSeq < 1 {
-			return fmt.Errorf("%w: next_seq", ErrValidation)
 		}
 		// Sample one id length
 		sample := FormatSequentialID(prefix, p.Width, 1)
