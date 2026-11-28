@@ -842,5 +842,22 @@
       "templates": "Vorlagen",
       "attachments": "Anhänge"
     }
+  },
+  "locationPicker": {
+    "placeholder": "Standort wählen …",
+    "search": "Standort suchen …",
+    "noMatch": "Kein Standort gefunden",
+    "subLocations": "Unterstandorte von {name}"
+  },
+  "moveItems": {
+    "start": "Verschieben",
+    "selectAll": "Alle auswählen",
+    "selectNone": "Auswahl aufheben",
+    "move": "Verschieben ({n})",
+    "title": "Artikel verschieben ({n})",
+    "target": "Ziel-Standort",
+    "confirm": "Verschieben",
+    "done": "Verschobene Artikel: {n}",
+    "partial": "Nur {n} von {total} Artikeln verschoben: {reason}"
   }
 }

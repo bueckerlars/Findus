@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { api } from "../api";
 import { toast } from "../composables/useToast";
 import FxModal from "./FxModal.vue";
+import LocationPicker from "./LocationPicker.vue";
 import FxSvg from "./FxSvg.vue";
 import FxAlert from "./primitives/FxAlert.vue";
 
@@ -19,7 +20,6 @@ type TemplateField = {
   options?: { value: string; label: string }[];
 };
 
-type LocOpt = { ID: string; Label: string };
 type Label = { ID: string; Name: string; Color: string };
 type ItemTemplate = { ID: string; DisplayName: string };
 
@@ -37,7 +37,6 @@ const name = ref("");
 const description = ref("");
 const locationId = ref("");
 const templateType = ref("");
-const locations = ref<LocOpt[]>([]);
 const templates = ref<ItemTemplate[]>([]);
 const allLabels = ref<Label[]>([]);
 const selectedLabels = ref<Record<string, boolean>>({});
@@ -86,7 +85,6 @@ async function load() {
   const locQ = props.initialLocationId?.trim() || "";
   const r = await api<{
     no_locations?: boolean;
-    locations?: LocOpt[];
     selected_location?: string;
     all_labels?: Label[];
     templates?: ItemTemplate[];
@@ -97,7 +95,6 @@ async function load() {
     return;
   }
   noLocations.value = false;
-  locations.value = r.locations || [];
   locationId.value = r.selected_location || locQ || "";
   allLabels.value = r.all_labels || [];
   templates.value = r.templates || [];
@@ -313,9 +310,7 @@ async function submit() {
         </div>
         <div>
           <label class="fx-label" for="fx-create-item-loc">{{ $t("createItem.location") }}</label>
-          <select id="fx-create-item-loc" v-model="locationId" class="fx-input" required>
-            <option v-for="o in locations" :key="o.ID" :value="o.ID">{{ o.Label }}</option>
-          </select>
+          <LocationPicker id="fx-create-item-loc" v-model="locationId" />
         </div>
         <div>
           <label class="fx-label" for="fx-create-item-tpl">{{ $t("createItem.template") }}</label>

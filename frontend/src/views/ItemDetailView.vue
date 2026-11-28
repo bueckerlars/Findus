@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { api, patchJson, postJson } from "../api";
 import { useSession } from "../session";
+import LocationPicker from "../components/LocationPicker.vue";
 import { PERM_ITEMS_WRITE } from "../permissions";
 import FxModal from "../components/FxModal.vue";
 import FxSvg, { type FxIconName } from "../components/FxSvg.vue";
@@ -24,7 +25,6 @@ type Item = {
 type Label = { ID: string; Name: string; Color: string };
 type PathEl = { ID: string; Name: string };
 type AttrRow = { Key: string; Label: string; DisplayValue: string; RawValue: string };
-type LocOpt = { ID: string; Label: string };
 type KV = { K: string; V: string };
 type TemplateField = {
   key: string;
@@ -69,7 +69,6 @@ let editBaseline = "";
 const draftName = ref("");
 const draftDesc = ref("");
 const draftLocationId = ref("");
-const locationsEdit = ref<LocOpt[]>([]);
 const allLabelsEdit = ref<Label[]>([]);
 const selectedLabelsEdit = ref<Record<string, boolean>>({});
 const fieldsEdit = ref<TemplateField[]>([]);
@@ -155,7 +154,6 @@ async function loadEditForm() {
   if (!item.value) return;
   const r = await api<{
     item: Item;
-    locations: LocOpt[];
     all_labels: Label[];
     selected_labels: Record<string, boolean>;
     additional_rows: KV[];
@@ -163,7 +161,6 @@ async function loadEditForm() {
   draftName.value = r.item.Name;
   draftDesc.value = r.item.Description;
   draftLocationId.value = r.item.LocationID;
-  locationsEdit.value = r.locations ?? [];
   allLabelsEdit.value = r.all_labels ?? [];
   const sl: Record<string, boolean> = {};
   for (const lb of r.all_labels) {
@@ -695,11 +692,9 @@ async function deleteAttachment(a: ItemAttachment) {
                 </div>
                 <div>
                   <label class="fx-label" for="item-inline-loc">{{ $t("itemDetail.storedIn") }}</label>
-                  <div class="mt-1.5 flex items-center gap-2">
-                    <FxSvg name="mapPin" class="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
-                    <select id="item-inline-loc" v-model="draftLocationId" class="fx-input mt-0 min-h-[2.5rem] flex-1 py-2 text-sm" required>
-                      <option v-for="o in locationsEdit" :key="o.ID" :value="o.ID">{{ o.Label }}</option>
-                    </select>
+                  <div class="mt-1.5 flex items-start gap-2">
+                    <FxSvg name="mapPin" class="mt-3 h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
+                    <LocationPicker id="item-inline-loc" v-model="draftLocationId" class="flex-1" />
                   </div>
                 </div>
               </template>

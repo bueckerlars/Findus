@@ -21,6 +21,8 @@ import FxButton from "../components/primitives/FxButton.vue";
 import ItemListRow from "../components/ItemListRow.vue";
 import ItemGalleryCard from "../components/ItemGalleryCard.vue";
 import QrScanModal from "../components/QrScanModal.vue";
+import FxModal from "../components/FxModal.vue";
+import LocationPicker from "../components/LocationPicker.vue";
 
 type Location = { ID: string; Name: string; Description: string; ParentID?: string | null };
 type Item = { ID: string; Name: string; Description: string; PhotoPath?: string | null };
@@ -36,6 +38,11 @@ const { t, locale } = useI18n();
 
 const loc = ref<Location | null>(null);
 const scanning = ref(false);
+const selecting = ref(false);
+const selected = ref(new Set<string>());
+const moveOpen = ref(false);
+const moveTarget = ref("");
+const moving = ref(false);
 const children = ref<Location[]>([]);
 const items = ref<Item[]>([]);
 const breadcrumb = ref<Crumb[]>([]);
@@ -53,6 +60,7 @@ const itemsViewKey = computed(() => "location_items_" + id.value);
 onMounted(load);
 watch(id, () => {
   scanning.value = false;
+  stopSelecting();
   void load();
 });
 async function load() {
@@ -71,6 +79,60 @@ async function load() {
   breadcrumb.value = r.breadcrumb ?? [];
   backHref.value = r.back_href;
   backLabel.value = r.back_label;
+}
+
+function stopSelecting() {
+  selecting.value = false;
+  selected.value = new Set();
+  moveOpen.value = false;
+}
+
+function toggleSelected(itemId: string) {
+  const next = new Set(selected.value);
+  if (!next.delete(itemId)) next.add(itemId);
+  selected.value = next;
+}
+
+function toggleSelectAll() {
+  selected.value = new Set(selected.value.size === items.value.length ? [] : items.value.map((it) => it.ID));
+}
+
+function openMove() {
+  moveTarget.value = "";
+  moveOpen.value = true;
+}
+
+function closeMove() {
+  if (!moving.value) moveOpen.value = false;
+}
+
+async function moveSelected() {
+  if (!moveTarget.value || moving.value) return;
+  moving.value = true;
+  const here = id.value;
+  const ids = [...selected.value];
+  const target = moveTarget.value;
+  let done = 0;
+  try {
+    for (const itemId of ids) {
+      await postJson("/api/items/" + itemId + "/move", { location_id: target });
+      done++;
+    }
+    toast.success(t("moveItems.done", { n: done }));
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : t("common.saveFailed");
+    toast.error(t("moveItems.partial", { n: done, total: ids.length, reason }));
+  } finally {
+    moving.value = false;
+    // After navigating away there is nothing left to update here.
+    if (id.value === here) {
+      moveOpen.value = false;
+      // Items that were not moved stay selected for another try.
+      selected.value = new Set(ids.slice(done));
+      if (!selected.value.size) selecting.value = false;
+      await load();
+    }
+  }
 }
 
 function qrDownloadFilename(): string {
@@ -219,11 +281,23 @@ async function del() {
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-base font-semibold text-zinc-900">{{ $t("locationDetail.itemsHere") }}</h2>
-          <div class="flex flex-wrap items-center gap-2">
+          <div v-if="selecting" class="flex flex-wrap items-center gap-2">
+            <button type="button" class="text-sm font-medium text-sky-600 hover:text-sky-700" :disabled="moving" @click="toggleSelectAll">
+              {{ selected.size === items.length ? $t("moveItems.selectNone") : $t("moveItems.selectAll") }}
+            </button>
+            <button type="button" class="fx-btn-secondary" :disabled="moving" @click="stopSelecting">{{ $t("common.cancel") }}</button>
+            <button type="button" class="fx-btn-primary" :disabled="!selected.size" @click="openMove">
+              {{ $t("moveItems.move", { n: selected.size }) }}
+            </button>
+          </div>
+          <div v-else class="flex flex-wrap items-center gap-2">
             <ItemsViewModeToolbar />
             <button type="button" class="fx-btn-secondary inline-flex items-center gap-1.5" @click="scanning = true">
               <FxSvg name="qr" />
               {{ $t("qrScan.button") }}
+            </button>
+            <button v-if="canCreateItemsHere && items.length" type="button" class="fx-btn-secondary" @click="selecting = true">
+              {{ $t("moveItems.start") }}
             </button>
             <button
               v-if="canCreateItemsHere"
@@ -237,7 +311,15 @@ async function del() {
         </div>
       </template>
 
-      <div v-if="items.length" class="mt-4">
+      <ul v-if="selecting" class="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200/80 bg-white">
+        <li v-for="it in items" :key="it.ID">
+          <label class="flex min-h-[3.25rem] cursor-pointer items-center gap-3 px-3 py-2 hover:bg-zinc-50">
+            <input type="checkbox" class="h-5 w-5 shrink-0 accent-sky-600" :checked="selected.has(it.ID)" @change="toggleSelected(it.ID)" />
+            <span class="min-w-0 break-words font-medium text-zinc-900">{{ it.Name }}</span>
+          </label>
+        </li>
+      </ul>
+      <div v-else-if="items.length" class="mt-4">
         <ul class="items-view-list-only divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm ring-1 ring-zinc-950/[0.03]">
           <li v-for="it in items" :key="it.ID">
             <ItemListRow :id="it.ID" :name="it.Name" :photo-path="it.PhotoPath" />
@@ -255,6 +337,19 @@ async function del() {
       </div>
       <FxEmptyState v-else class="mt-4" icon="cube" :title="$t('locationDetail.emptyItemsHere')" />
     </ItemsViewToggle>
+
+    <FxModal :model-value="moveOpen" :title="$t('moveItems.title', { n: selected.size })" @update:model-value="closeMove">
+      <label class="fx-label" for="fx-move-items-target">{{ $t("moveItems.target") }}</label>
+      <LocationPicker id="fx-move-items-target" v-model="moveTarget" :disabled-id="loc.ID" />
+      <template #footer>
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" class="fx-btn-secondary w-full sm:w-auto" :disabled="moving" @click="closeMove">{{ $t("common.cancel") }}</button>
+          <button type="button" class="fx-btn-primary w-full sm:w-auto" :disabled="!moveTarget || moving" :aria-busy="moving || undefined" @click="moveSelected">
+            {{ $t("moveItems.confirm") }}
+          </button>
+        </div>
+      </template>
+    </FxModal>
 
     <QrScanModal v-if="scanning" :location-id="loc.ID" :location-name="loc.Name" @close="scanning = false" @moved="load" />
   </div>
