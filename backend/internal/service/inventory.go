@@ -141,6 +141,26 @@ func (s *Inventory) validateLabelRefs(ctx context.Context, labelIDs []string) er
 }
 
 func (s *Inventory) CreateItem(ctx context.Context, name, description, locationID string, tt domain.TemplateType, td, additional json.RawMessage, labelIDs []string) (*domain.Item, error) {
+	return s.CreateItemFromQR(ctx, "", name, description, locationID, tt, td, additional, labelIDs)
+}
+
+// CreateItemFromQR creates the item a printed label reserved qrToken for, using the ID on that label.
+// An empty qrToken allocates the next ID.
+func (s *Inventory) CreateItemFromQR(ctx context.Context, qrToken, name, description, locationID string, tt domain.TemplateType, td, additional json.RawMessage, labelIDs []string) (*domain.Item, error) {
+	reservedID := ""
+	if qrToken != "" {
+		if s.ItemQRTokens == nil {
+			return nil, fmt.Errorf("%w: qr reservations", domain.ErrValidation)
+		}
+		id, ok, err := s.ItemQRTokens.GetItemIDByToken(ctx, qrToken)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("%w: qr token", domain.ErrNotFound)
+		}
+		reservedID = id
+	}
 	name = trim(name, 1, 200)
 	if name == "" {
 		return nil, fmt.Errorf("%w: name", domain.ErrValidation)
@@ -164,10 +184,14 @@ func (s *Inventory) CreateItem(ctx context.Context, name, description, locationI
 	now := time.Now().UTC()
 	var it *domain.Item
 	var createErr error
-	for attempt := 0; attempt < 24; attempt++ {
-		itemID, err := s.allocateNextItemID(ctx)
-		if err != nil {
-			return nil, err
+	for attempt := 0; attempt < DefaultLabelBatchLimit+24; attempt++ {
+		itemID := reservedID
+		if itemID == "" {
+			next, err := s.allocateNextItemID(ctx)
+			if err != nil {
+				return nil, err
+			}
+			itemID = next
 		}
 		cand := &domain.Item{
 			ID:             itemID,
@@ -198,8 +222,12 @@ func (s *Inventory) CreateItem(ctx context.Context, name, description, locationI
 			}
 			break
 		}
-		if !isSQLiteUniqueViolation(createErr) {
+		if reservedID != "" || !isSQLiteUniqueViolation(createErr) {
 			return nil, createErr
+		}
+		// The ID may be taken by an item created from its label ahead of the counter.
+		if err := s.sequentialBumpAfterSuccessfulCreate(ctx, itemID); err != nil {
+			return nil, err
 		}
 	}
 	if it == nil {

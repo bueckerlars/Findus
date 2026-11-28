@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -154,8 +155,13 @@ func (s *Server) QRedirect(w http.ResponseWriter, r *http.Request) {
 	if s.ItemQRTokens != nil {
 		itemID, ok, err := s.ItemQRTokens.GetItemIDByToken(ctx, token)
 		if err == nil && ok {
-			if it, itemErr := s.Items.GetByID(ctx, itemID); itemErr == nil {
+			it, itemErr := s.Items.GetByID(ctx, itemID)
+			if itemErr == nil {
 				http.Redirect(w, r, "/items/"+it.ID, http.StatusFound)
+				return
+			}
+			if errors.Is(itemErr, domain.ErrNotFound) {
+				http.Redirect(w, r, "/items/new?qr="+url.QueryEscape(token), http.StatusFound)
 				return
 			}
 		}

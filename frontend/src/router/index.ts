@@ -37,8 +37,10 @@ const router = createRouter({
           redirect: (to) => {
             const { setPending } = useCreateModals();
             const loc = to.query.location_id;
+            const qr = to.query.qr;
             setPending({
               kind: "item",
+              qrToken: typeof qr === "string" ? qr : undefined,
               locationId: typeof loc === "string" ? loc : undefined,
             });
             return { path: "/items", replace: true };
