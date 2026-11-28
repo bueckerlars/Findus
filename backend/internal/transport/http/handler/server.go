@@ -342,13 +342,37 @@ func (s *Server) ItemPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := filepath.Join(s.Config.DataDir, filepath.FromSlash(*it.PhotoPath))
-	b, err := os.ReadFile(p)
+	contentType := "image/webp"
+	if r.URL.Query().Get("size") == "thumb" {
+		thumb := service.ItemThumbnailPath(s.Config.DataDir, it.ID)
+		if err := service.EnsureThumbnail(p, thumb); err != nil {
+			// Fall back to the full photo so the image still shows.
+			s.Log.Warn("thumbnail", "item", it.ID, "err", err)
+		} else {
+			p, contentType = thumb, "image/jpeg"
+		}
+	}
+	serveImage(w, r, p, contentType)
+}
+
+// serveImage sends an image the browser may cache but has to revalidate (304 when unchanged),
+// because the URL stays the same when a photo is replaced.
+func serveImage(w http.ResponseWriter, r *http.Request, path, contentType string) {
+	f, err := os.Open(path)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("Content-Type", "image/webp")
-	_, _ = w.Write(b)
+	defer func() { _ = f.Close() }()
+	st, err := f.Stat()
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "private, no-cache")
+	w.Header().Set("ETag", fmt.Sprintf(`"%x-%x"`, st.ModTime().UnixNano(), st.Size()))
+	http.ServeContent(w, r, "", st.ModTime(), f)
 }
 
 func (s *Server) ItemQR(w http.ResponseWriter, r *http.Request) {

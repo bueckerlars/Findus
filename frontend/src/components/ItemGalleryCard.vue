@@ -32,8 +32,10 @@ withDefaults(
     <div class="fx-item-gallery-media aspect-square bg-gradient-to-br from-zinc-50 to-zinc-100 ring-1 ring-zinc-100/80">
       <img
         v-if="photoPath"
-        :src="'/items/' + id + '/photo'"
+        :src="'/items/' + id + '/photo?size=thumb'"
         alt=""
+        loading="lazy"
+        decoding="async"
         class="fx-item-gallery-photo"
         @error="($event.target as HTMLImageElement).style.display = 'none'"
       />

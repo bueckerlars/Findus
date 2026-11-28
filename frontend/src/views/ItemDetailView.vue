@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { api, patchJson, postJson } from "../api";
 import { useSession } from "../session";
 import { PERM_ITEMS_WRITE } from "../permissions";
+import FxModal from "../components/FxModal.vue";
 import FxSvg, { type FxIconName } from "../components/FxSvg.vue";
 import FxQrMenuButton from "../components/FxQrMenuButton.vue";
 import { confirmAlert } from "../composables/useAlertDialog";
@@ -88,6 +89,9 @@ const id = computed(() => route.params.id as string);
 const qrPngUrl = computed(() => "/items/" + id.value + "/qr.png");
 const breadcrumbTitle = computed(() => (editMode.value ? draftName.value : item.value?.Name) || "");
 const heroImageSrc = computed(() => photoPendingPreview.value || photoUrl.value);
+const heroThumbSrc = computed(() => photoPendingPreview.value || (photoUrl.value && photoUrl.value + "?size=thumb"));
+const photoViewerOpen = ref(false);
+watch(id, () => (photoViewerOpen.value = false));
 
 watch(photoFile, (f) => {
   if (photoPendingPreview.value) {
@@ -589,7 +593,15 @@ async function deleteAttachment(a: ItemAttachment) {
             <div
               class="overflow-hidden rounded-2xl border border-zinc-200/90 bg-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] ring-1 ring-zinc-950/[0.04]"
             >
-              <img :src="heroImageSrc" alt="" class="aspect-square w-full object-cover" />
+              <button
+                type="button"
+                class="block w-full cursor-zoom-in"
+                :aria-label="$t('itemDetail.viewPhoto')"
+                :title="$t('itemDetail.viewPhoto')"
+                @click="photoViewerOpen = true"
+              >
+                <img :src="heroThumbSrc" alt="" class="aspect-square w-full object-cover" />
+              </button>
             </div>
             <div v-if="editMode" class="mt-3 space-y-2">
               <label
@@ -1042,5 +1054,14 @@ async function deleteAttachment(a: ItemAttachment) {
         </table>
       </div>
     </section>
+
+    <FxModal v-model="photoViewerOpen" :title="item?.Name ?? ''" max-width-class="max-w-4xl">
+      <img :src="heroImageSrc" :alt="item?.Name ?? ''" class="mx-auto max-h-[60vh] max-w-full object-contain" />
+      <template #footer>
+        <div class="flex justify-end">
+          <button type="button" class="fx-btn-primary text-sm" @click="photoViewerOpen = false">{{ $t("common.dismiss") }}</button>
+        </div>
+      </template>
+    </FxModal>
   </div>
 </template>
