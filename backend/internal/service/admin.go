@@ -126,7 +126,15 @@ func (a *Admin) SetUserActive(ctx context.Context, id string, active bool) error
 	}
 	u.IsActive = active
 	u.UpdatedAt = time.Now().UTC()
-	return a.Users.Update(ctx, u)
+	if err := a.Users.Update(ctx, u); err != nil {
+		return err
+	}
+	if active {
+		return nil
+	}
+	// Otherwise old sessions would work again after reactivation.
+	_, err = a.Users.BumpSessionVersion(ctx, id)
+	return err
 }
 
 func (a *Admin) SetUserRole(ctx context.Context, id string, role domain.Role) error {
@@ -137,7 +145,14 @@ func (a *Admin) SetUserRole(ctx context.Context, id string, role domain.Role) er
 	if err != nil {
 		return err
 	}
+	if u.Role == role {
+		return nil
+	}
 	u.Role = role
 	u.UpdatedAt = time.Now().UTC()
-	return a.Users.Update(ctx, u)
+	if err := a.Users.Update(ctx, u); err != nil {
+		return err
+	}
+	_, err = a.Users.BumpSessionVersion(ctx, id)
+	return err
 }

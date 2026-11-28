@@ -93,7 +93,7 @@ func (s *Inventory) SetItemIDPolicy(ctx context.Context, dataDir string, want do
 	}
 
 	for _, rw := range rows {
-		if rw.OldID == rw.NewID {
+		if rw.OldID == rw.NewID || !domain.ValidID(rw.OldID) {
 			continue
 		}
 		oldPath := filepath.Join(dataDir, "images", rw.OldID+".webp")
@@ -157,7 +157,7 @@ func copyItemImagesForMigration(dataDir string, rows []domain.ItemIDMigration) (
 		return nil, err
 	}
 	for _, rw := range rows {
-		if rw.OldID == rw.NewID {
+		if rw.OldID == rw.NewID || !domain.ValidID(rw.OldID) {
 			continue
 		}
 		src := filepath.Join(dataDir, "images", rw.OldID+".webp")

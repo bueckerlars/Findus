@@ -14,14 +14,18 @@ const Issuer = "findus"
 type Claims struct {
 	UserID string `json:"uid"`
 	Role   string `json:"role"`
+	// SessionVersion must still match the user's, see domain.User.
+	SessionVersion int `json:"sv"`
 	jwt.RegisteredClaims
 }
 
-func Sign(secret []byte, userID string, role domain.Role, ttl time.Duration) (string, error) {
+func Sign(secret []byte, userID string, role domain.Role, sessionVersion int, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		UserID: userID,
 		Role:   string(role),
+
+		SessionVersion: sessionVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    Issuer,
 			IssuedAt:  jwt.NewNumericDate(now),

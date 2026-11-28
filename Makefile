@@ -5,7 +5,7 @@ AIR := go run github.com/air-verse/air@v1.65.1
 
 # Pre-commit / local checks (pin versions for reproducible installs via `go run`).
 LEFTHOOK := go run github.com/evilmartians/lefthook@v1.13.6
-GOLANGCI_LINT := go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
+GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 FINDUS_DATA_DIR ?= ./data
 

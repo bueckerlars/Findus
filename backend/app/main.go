@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -61,6 +62,20 @@ func main() {
 	settings := sqlite.NewSettingsRepo(db)
 
 	authSvc := &service.Auth{Users: users, Settings: settings, Invites: invites}
+	userCount, err := users.Count(ctx)
+	if err != nil {
+		panic(err)
+	}
+	// The first account becomes admin: only whoever can read the server log or config may create it.
+	authSvc.SetupToken = cfg.SetupToken
+	if authSvc.SetupToken == "" {
+		authSvc.SetupToken = rand.Text()
+		if userCount == 0 {
+			log.Warn("no account yet: create the admin account with this one-time setup link",
+				slog.String("event", "setup_token"),
+				slog.String("url", cfg.BaseURL+"/register?invite="+authSvc.SetupToken))
+		}
+	}
 	adminSvc := &service.Admin{Users: users, Settings: settings, Invites: invites, Groups: groups}
 	labels := sqlite.NewLabelRepo(db)
 	attachments := sqlite.NewItemAttachmentRepo(db)
@@ -99,6 +114,9 @@ func main() {
 		Addr:              addr,
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       5 * time.Minute, // generous for uploads over slow mobile links
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	errCh := make(chan error, 1)

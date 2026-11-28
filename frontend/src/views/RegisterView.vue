@@ -44,7 +44,9 @@ const attemptedSubmit = ref(false);
 const usernameRemote = ref<UsernameRemote>("idle");
 let usernameDebounce: ReturnType<typeof setTimeout> | undefined;
 
-const hasInvite = computed(() => invite.value.trim().length > 0);
+const hasInvite = computed(() => invite.value.trim().length > 0 && !needsSetupToken.value);
+// The first account needs the token from the server log; the setup link fills it in.
+const needsSetupToken = computed(() => boot.value?.user_count === 0);
 
 const help = computed(() => {
   const b = boot.value;
@@ -233,6 +235,14 @@ async function submit() {
               />
               <p v-if="!passwordFieldError" class="fx-auth-password-hint">{{ $t("auth.register.passwordHint") }}</p>
             </div>
+            <AuthFormInput
+              v-if="needsSetupToken"
+              id="reg-setup-token"
+              v-model="invite"
+              :label="$t('auth.register.setupToken')"
+              autocomplete="off"
+              :disabled="submitting"
+            />
             <FxButton type="submit" size="lg" full-width :loading="submitting" :disabled="submitting">
               {{ submitting ? $t("auth.register.submitting") : $t("auth.register.submit") }}
             </FxButton>

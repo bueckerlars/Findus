@@ -28,14 +28,14 @@ HTTP API reference for Findus. All routes follow Go 1.22+ `net/http` `ServeMux` 
 
 All routes below require a valid session cookie. The Vue app calls these with `fetch(..., { credentials: "same-origin" })`.
 
-**CSRF:** Mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) must include the `X-CSRF-Token` header with the value of the `findus_csrf` cookie. Requests without this header are rejected with `403`.
+**CSRF:** Mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) must include the `X-CSRF-Token` header with the value of the `findus_csrf` cookie (`__Host-findus_csrf` with secure cookies). Form fields are not accepted. Requests without this header are rejected with `403`.
 
 ### User & session
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/me` | Current user info — `401` if not authenticated (used by router guards) |
-| `POST` | `/api/auth/logout` | Clears the session cookie |
+| `POST` | `/api/auth/logout` | Ends all sessions of the user and clears the cookie |
 | `GET` | `/api/profile` | Current user's profile |
 | `POST` | `/api/profile` | Update profile — `multipart/form-data` (supports avatar upload) |
 

@@ -23,7 +23,7 @@ func (s *Server) APIAdminInventoryExport(w http.ResponseWriter, r *http.Request)
 	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
 	bundle, err := s.Inventory.BuildInventoryExportBundle(ctx)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	switch format {
@@ -38,7 +38,7 @@ func (s *Server) APIAdminInventoryExport(w http.ResponseWriter, r *http.Request)
 	case "csv":
 		zb, err := service.EncodeInventoryCSVZIP(bundle)
 		if err != nil {
-			s.writeJSONError(w, http.StatusBadRequest, err.Error())
+			s.writeError(w, http.StatusBadRequest, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/zip")
@@ -124,11 +124,11 @@ func (s *Server) APIAdminInventoryImport(w http.ResponseWriter, r *http.Request)
 	}
 	res, err := invTx.ImportInventoryBundle(ctx, bundle)
 	if err != nil {
-		status := http.StatusBadRequest
 		if errors.Is(err, service.ErrLabelNameConflict) {
-			status = http.StatusConflict
+			s.writeJSONError(w, http.StatusConflict, err.Error())
+			return
 		}
-		s.writeJSONError(w, status, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	if err := tx.Commit(); err != nil {

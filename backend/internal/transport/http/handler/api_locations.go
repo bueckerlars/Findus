@@ -86,7 +86,7 @@ func (s *Server) APILocationCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	loc, err := s.Inventory.CreateLocation(ctx, req.Name, req.Description, p)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]any{"id": loc.ID, "next": "/locations/" + loc.ID})
@@ -180,7 +180,7 @@ func (s *Server) APILocationUpdate(w http.ResponseWriter, r *http.Request) {
 		p = &parent
 	}
 	if _, err := s.Inventory.UpdateLocation(ctx, id, req.Name, req.Description, p); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/locations/" + id})
@@ -190,7 +190,7 @@ func (s *Server) APILocationDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := r.PathValue("id")
 	if err := s.Inventory.DeleteLocation(ctx, id); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/locations"})

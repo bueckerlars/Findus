@@ -145,8 +145,8 @@ func importOneTemplate(ctx context.Context, s *Inventory, t InventoryExportTempl
 
 func importOneLabel(ctx context.Context, s *Inventory, lb domain.Label, res *InventoryImportResult) error {
 	id := strings.TrimSpace(lb.ID)
-	if id == "" {
-		return fmt.Errorf("%w: label id", domain.ErrValidation)
+	if !domain.ValidID(id) {
+		return fmt.Errorf("%w: label id %q (allowed: letters, digits, - and _)", domain.ErrValidation, id)
 	}
 	existing, err := s.Labels.GetByID(ctx, id)
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
@@ -206,8 +206,8 @@ func labelNameFree(ctx context.Context, s *Inventory, name, excludeID string) er
 
 func importOneLocation(ctx context.Context, s *Inventory, l domain.Location, res *InventoryImportResult) error {
 	id := strings.TrimSpace(l.ID)
-	if id == "" {
-		return fmt.Errorf("%w: location id", domain.ErrValidation)
+	if !domain.ValidID(id) {
+		return fmt.Errorf("%w: location id %q (allowed: letters, digits, - and _)", domain.ErrValidation, id)
 	}
 	pid := l.ParentID
 	if pid != nil && strings.TrimSpace(*pid) == "" {
@@ -224,6 +224,7 @@ func importOneLocation(ctx context.Context, s *Inventory, l domain.Location, res
 		for attempt := 0; attempt < 24; attempt++ {
 			cand := l
 			cand.ID = id
+			cand.QRToken = importQRToken(l.QRToken)
 			cand.ParentID = pid
 			cand.CreatedAt = pickTime(l.CreatedAt, now)
 			cand.UpdatedAt = pickTime(l.UpdatedAt, now)
@@ -262,8 +263,8 @@ func importOneLocation(ctx context.Context, s *Inventory, l domain.Location, res
 
 func importOneItem(ctx context.Context, s *Inventory, row InventoryExportItem, res *InventoryImportResult) error {
 	id := strings.TrimSpace(row.ID)
-	if id == "" {
-		return fmt.Errorf("%w: item id", domain.ErrValidation)
+	if !domain.ValidID(id) {
+		return fmt.Errorf("%w: item id %q (allowed: letters, digits, - and _)", domain.ErrValidation, id)
 	}
 	if err := s.ensureTemplateType(ctx, row.TemplateType); err != nil {
 		return err
@@ -299,8 +300,8 @@ func importOneItem(ctx context.Context, s *Inventory, row InventoryExportItem, r
 				TemplateType:   row.TemplateType,
 				TemplateData:   td,
 				AdditionalData: ad,
-				PhotoPath:      row.PhotoPath,
-				QRToken:        row.QRToken,
+				PhotoPath:      importPhotoPath(id, row.PhotoPath),
+				QRToken:        importQRToken(row.QRToken),
 				CreatedAt:      pickTime(row.CreatedAt, now),
 				UpdatedAt:      pickTime(row.UpdatedAt, now),
 			}
@@ -334,7 +335,7 @@ func importOneItem(ctx context.Context, s *Inventory, row InventoryExportItem, r
 	cur.TemplateType = row.TemplateType
 	cur.TemplateData = td
 	cur.AdditionalData = ad
-	cur.PhotoPath = row.PhotoPath
+	cur.PhotoPath = importPhotoPath(id, row.PhotoPath)
 	cur.UpdatedAt = time.Now().UTC()
 	if cur.Name == "" {
 		return fmt.Errorf("%w: item name", domain.ErrValidation)
@@ -348,6 +349,23 @@ func importOneItem(ctx context.Context, s *Inventory, row InventoryExportItem, r
 	res.ItemsUpdated++
 	res.ItemLabelsReplaced++
 	return nil
+}
+
+// importPhotoPath only takes over whether an item has a photo. The path itself follows from the
+// ID: a path from the file could point at the database or the JWT secret.
+func importPhotoPath(itemID string, imported *string) *string {
+	if imported == nil || strings.TrimSpace(*imported) == "" {
+		return nil
+	}
+	rel := "images/" + itemID + ".webp"
+	return &rel
+}
+
+func importQRToken(token string) string {
+	if !domain.ValidID(token) {
+		return newID()
+	}
+	return token
 }
 
 func pickTime(t time.Time, fallback time.Time) time.Time {

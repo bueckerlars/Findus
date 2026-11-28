@@ -1,5 +1,5 @@
 # --- Vue + Vite + Tailwind (production assets) ---
-FROM node:20-alpine AS assets
+FROM node:22-alpine AS assets
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
@@ -10,7 +10,7 @@ COPY frontend/src ./src
 RUN npm run build
 
 # --- Go binary ---
-FROM golang:1.23-alpine AS build
+FROM golang:1.27-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache git
 COPY go.mod go.sum ./

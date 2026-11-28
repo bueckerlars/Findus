@@ -22,8 +22,8 @@ Thank you for taking the time to contribute. This document covers everything you
 
 | Tool | Minimum version |
 |---|---|
-| Go | 1.23 |
-| Node.js | 20 |
+| Go | 1.26 |
+| Node.js | 22 |
 | npm | bundled with Node |
 | Docker + Compose | v2 (optional, for container testing) |
 

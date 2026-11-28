@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
 	"strings"
@@ -11,8 +12,15 @@ import (
 const (
 	csrfCookieName = "findus_csrf"
 	csrfHeaderName = "X-CSRF-Token"
-	csrfFormName   = "csrf_token"
 )
+
+// cookieName adds the __Host- prefix behind HTTPS, so that no subdomain or plain-HTTP page can plant the cookie.
+func cookieName(base string, secure bool) string {
+	if secure {
+		return "__Host-" + base
+	}
+	return base
+}
 
 type csrfCtxKeyType struct{}
 
@@ -30,14 +38,14 @@ func CSRF(secure bool) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			c, err := r.Cookie(csrfCookieName)
+			c, err := r.Cookie(cookieName(csrfCookieName, secure))
 			token := ""
 			if err != nil || c.Value == "" {
 				b := make([]byte, 16)
 				_, _ = rand.Read(b)
 				token = hex.EncodeToString(b)
 				http.SetCookie(w, &http.Cookie{
-					Name:     csrfCookieName,
+					Name:     cookieName(csrfCookieName, secure),
 					Value:    token,
 					Path:     "/",
 					MaxAge:   86400 * 30,
@@ -55,15 +63,9 @@ func CSRF(secure bool) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			// Header only: reading the token from a form would parse uploads before any check.
 			got := strings.TrimSpace(r.Header.Get(csrfHeaderName))
-			if got == "" {
-				if err := parseRequestForCSRF(r); err != nil {
-					http.Error(w, "bad request", http.StatusBadRequest)
-					return
-				}
-				got = strings.TrimSpace(r.FormValue(csrfFormName))
-			}
-			if got == "" || token == "" || !strings.EqualFold(got, token) {
+			if got == "" || subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
 				http.Error(w, "invalid csrf token", http.StatusForbidden)
 				return
 			}
@@ -81,16 +83,4 @@ func shouldSkipCSRF(r *http.Request) bool {
 		return true
 	}
 	return false
-}
-
-func parseRequestForCSRF(r *http.Request) error {
-	ct := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
-	if strings.HasPrefix(ct, "multipart/form-data") {
-		return r.ParseMultipartForm(32 << 20)
-	}
-	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
-		return r.ParseForm()
-	}
-	// Opaque or JSON bodies: do not read the stream (callers that use X-CSRF-Token skip this).
-	return nil
 }

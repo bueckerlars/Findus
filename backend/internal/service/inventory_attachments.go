@@ -102,6 +102,9 @@ func (s *Inventory) AddItemAttachment(ctx context.Context, dataDir, itemID, titl
 	if _, err := s.Items.GetByID(ctx, itemID); err != nil {
 		return nil, err
 	}
+	if !domain.ValidID(itemID) {
+		return nil, fmt.Errorf("%w: item id", domain.ErrValidation)
+	}
 	head := make([]byte, 512)
 	n, err := io.ReadFull(r, head)
 	if err == io.ErrUnexpectedEOF {
@@ -250,12 +253,18 @@ func (s *Inventory) DeleteItemAttachment(ctx context.Context, dataDir, itemID, a
 	if err := s.ItemAttachments.DeleteByID(ctx, attachmentID); err != nil {
 		return err
 	}
-	_ = os.Remove(filepath.Join(dataDir, filepath.FromSlash(a.StoragePath)))
+	if p, err := DataFile(dataDir, "item-attachments", a.StoragePath); err == nil {
+		_ = os.Remove(p)
+	}
 	return nil
 }
 
 // RemoveItemAttachmentDir deletes the on-disk folder for all attachments of an item (call before deleting the item row).
 func RemoveItemAttachmentDir(dataDir, itemID string) error {
+	// An ID such as ".." would remove the whole data directory.
+	if !domain.ValidID(itemID) {
+		return fmt.Errorf("%w: item id", domain.ErrValidation)
+	}
 	dir := filepath.Join(dataDir, "item-attachments", itemID)
 	return os.RemoveAll(dir)
 }

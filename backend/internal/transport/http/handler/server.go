@@ -47,6 +47,8 @@ type Server struct {
 	Backup    *service.Backup
 
 	JWTSecret []byte
+
+	limits rateLimiter
 }
 
 type labelRow struct {
@@ -127,7 +129,11 @@ func (s *Server) ProfilePhoto(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	p := filepath.Join(s.Config.DataDir, filepath.FromSlash(*u.AvatarPath))
+	p, err := service.DataFile(s.Config.DataDir, "images", *u.AvatarPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
 	b, err := os.ReadFile(p)
 	if err != nil {
 		http.NotFound(w, r)
@@ -313,6 +319,9 @@ func parseLabelIDs(r *http.Request) []string {
 }
 
 func (s *Server) saveItemPhoto(_ context.Context, itemID string, r io.Reader) error {
+	if !domain.ValidID(itemID) {
+		return fmt.Errorf("%w: item id", domain.ErrValidation)
+	}
 	b, err := service.EncodeWebPFromImage(r)
 	if err != nil {
 		return err
@@ -354,9 +363,13 @@ func (s *Server) ItemPhoto(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	p := filepath.Join(s.Config.DataDir, filepath.FromSlash(*it.PhotoPath))
+	p, err := service.DataFile(s.Config.DataDir, "images", *it.PhotoPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
 	contentType := "image/webp"
-	if r.URL.Query().Get("size") == "thumb" {
+	if r.URL.Query().Get("size") == "thumb" && domain.ValidID(it.ID) {
 		thumb := service.ItemThumbnailPath(s.Config.DataDir, it.ID)
 		if err := service.EnsureThumbnail(p, thumb); err != nil {
 			// Fall back to the full photo so the image still shows.

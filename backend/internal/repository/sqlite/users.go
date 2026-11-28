@@ -30,25 +30,25 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 
 func (r *UserRepo) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme FROM users WHERE id = ?`, id)
+		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme, session_version FROM users WHERE id = ?`, id)
 	return scanUser(row)
 }
 
 func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme FROM users WHERE username = ?`, username)
+		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme, session_version FROM users WHERE username = ?`, username)
 	return scanUser(row)
 }
 
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme FROM users WHERE email = ?`, email)
+		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme, session_version FROM users WHERE email = ?`, email)
 	return scanUser(row)
 }
 
 func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme FROM users ORDER BY username`)
+		SELECT id, username, email, password_hash, role, is_active, created_at, updated_at, avatar_path, ui_theme, session_version FROM users ORDER BY username`)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +78,16 @@ func (r *UserRepo) Update(ctx context.Context, u *domain.User) error {
 	return nil
 }
 
+// BumpSessionVersion is separate from Update, so that a concurrent profile write cannot revive old sessions.
+func (r *UserRepo) BumpSessionVersion(ctx context.Context, id string) (int, error) {
+	var v int
+	err := r.db.QueryRowContext(ctx, `UPDATE users SET session_version = session_version + 1 WHERE id = ? RETURNING session_version`, id).Scan(&v)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, domain.ErrNotFound
+	}
+	return v, err
+}
+
 func nullString(p *string) any {
 	if p == nil || *p == "" {
 		return nil
@@ -93,7 +103,7 @@ func scanUser(sc interface {
 	var created, updated string
 	var avatar sql.NullString
 	var uiTheme string
-	err := sc.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Role, &isActive, &created, &updated, &avatar, &uiTheme)
+	err := sc.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Role, &isActive, &created, &updated, &avatar, &uiTheme, &u.SessionVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrNotFound
 	}

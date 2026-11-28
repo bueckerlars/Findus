@@ -5,7 +5,7 @@
 **Remember where everything lives.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-embedded-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/)
@@ -40,7 +40,7 @@ Scan a QR code on any box and land directly on its page. No SaaS, no subscriptio
 - **Full-text search** — Find anything by name, description, or custom field value (FTS5-powered, with a LIKE fallback).
 - **AI access via MCP** — Connect an LLM agent to search and manage your inventory, with per-user permission toggles ([setup](docs/mcp.md)).
 - **Command palette** — Keyboard-driven search overlay for quick navigation.
-- **Role-based access** — First registered user becomes admin. Admins manage users, templates, labels, and settings; regular users browse and edit inventory.
+- **Role-based access** — The first account, created with the setup token, becomes admin. Admins manage users, templates, labels, and settings; regular users browse and edit inventory.
 - **Registration modes** — Open, invite-only, or admin-only: you control who can sign up.
 - **One-click backup** — Admins download a ZIP containing the SQLite snapshot and all images.
 - **No external dependencies** — Single Go binary, SQLite, embedded Vue SPA. No Redis, no Postgres, no cloud services.
@@ -66,8 +66,15 @@ docker compose up -d
 
 ### 3 — Open the app
 
-Navigate to **http://localhost:8080**.  
-The **first account you register becomes the admin**. Subsequent registrations follow the mode configured in admin settings (default: open).
+The **first account becomes the admin** and needs a setup token. Findus writes a one-time setup link to its log:
+
+```bash
+docker compose logs findus | grep setup_token
+```
+
+Open that link (or set `FINDUS_SETUP_TOKEN` beforehand). Subsequent registrations follow the mode configured in admin settings (default: admin only).
+
+The port is bound to `127.0.0.1`. To reach Findus from elsewhere, put an HTTPS reverse proxy in front ([setup](docs/configuration.md#https-and-reverse-proxies)).
 
 ### Health check
 
@@ -96,7 +103,9 @@ All settings are environment variables. Copy [`.env.example`](.env.example) as a
 | `FINDUS_DATA_DIR` | `./data` (`/data` in Docker) | No | Root directory for the SQLite database and `images/` folder |
 | `FINDUS_BASE_URL` | `http://localhost:8080` | No | **Public** URL users type in the browser — embedded in every QR code |
 | `FINDUS_JWT_SECRET` | *(auto-generated)* | No | HS256 signing secret. If empty, Findus creates or loads `$DATA_DIR/.jwt_secret` |
-| `FINDUS_COOKIE_SECURE` | `false` | No | Set `true` when serving over HTTPS so session cookies are Secure |
+| `FINDUS_COOKIE_SECURE` | `true` for `https://` base URLs | No | Secure cookies and HSTS |
+| `FINDUS_TRUST_PROXY` | `false` | No | `true` behind a reverse proxy that sets `X-Forwarded-For` |
+| `FINDUS_SETUP_TOKEN` | *(random, logged)* | No | Needed to create the first account |
 | `FINDUS_LOG_LEVEL` | `info` | No | `debug` · `info` · `warn` · `error` |
 | `FINDUS_LOG_FORMAT` | `text` | No | `text` (key=value) or `json` (structured — for log aggregators) |
 
@@ -104,7 +113,7 @@ All settings are environment variables. Copy [`.env.example`](.env.example) as a
 
 1. Terminate TLS at Caddy, nginx, Traefik, etc. and forward plain HTTP to Findus on its port.
 2. Set `FINDUS_BASE_URL` to the **https** URL — e.g. `https://findus.example.com`. QR codes embed this URL.
-3. Set `FINDUS_COOKIE_SECURE=true` so session cookies are only sent over HTTPS.
+3. Set `FINDUS_TRUST_PROXY=true` and let the proxy set `X-Forwarded-For`. Secure cookies switch on automatically.
 
 > **Common issue:** scanning a QR code opens the wrong host or shows a browser error?  
 > The most likely cause is `FINDUS_BASE_URL` pointing at the wrong scheme or hostname.

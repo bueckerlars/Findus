@@ -33,7 +33,7 @@ func (r *InviteRepo) GetByToken(ctx context.Context, token string) (*domain.Invi
 }
 
 func (r *InviteRepo) MarkUsed(ctx context.Context, id string, at time.Time) error {
-	res, err := r.db.ExecContext(ctx, `UPDATE invites SET used_at=? WHERE id=?`, formatTime(at), id)
+	res, err := r.db.ExecContext(ctx, `UPDATE invites SET used_at=? WHERE id=? AND used_at IS NULL`, formatTime(at), id)
 	if err != nil {
 		return err
 	}

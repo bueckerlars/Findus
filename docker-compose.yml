@@ -10,11 +10,17 @@ services:
 
   findus:
     image: ghcr.io/bueckerlars/findus:latest
+    # Only reachable from this host. Put an HTTPS reverse proxy in front before going public,
+    # and set FINDUS_BASE_URL to the https:// address and FINDUS_TRUST_PROXY=true (for example in .env).
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
-      FINDUS_BASE_URL: http://localhost:8080
-      FINDUS_COOKIE_SECURE: "false"
+      FINDUS_BASE_URL: ${FINDUS_BASE_URL:-http://localhost:8080}
+      # empty = secure cookies exactly when FINDUS_BASE_URL is https://
+      FINDUS_COOKIE_SECURE: ${FINDUS_COOKIE_SECURE:-}
+      FINDUS_TRUST_PROXY: ${FINDUS_TRUST_PROXY:-false}
+      FINDUS_SETUP_TOKEN: ${FINDUS_SETUP_TOKEN:-}
+      FINDUS_JWT_SECRET: ${FINDUS_JWT_SECRET:-}
       FINDUS_LOG_LEVEL: info
       FINDUS_LOG_FORMAT: json
     volumes:

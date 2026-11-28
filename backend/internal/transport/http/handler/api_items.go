@@ -98,7 +98,7 @@ func (s *Server) APIItemCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	add, err := service.ParseAdditionalFromForm(r)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	form := make(map[string]string)
@@ -107,19 +107,19 @@ func (s *Server) APIItemCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	td, err := domain.NormalizeTemplateDataFromFields(tt.Fields, form)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	merged, err := service.MergeTemplateIntoAdditional(add, td)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	labelIDs := parseLabelIDs(r)
 	emptyTD := json.RawMessage(`{}`)
 	it, err := s.Inventory.CreateItemFromQR(ctx, r.FormValue("qr_token"), r.FormValue("name"), r.FormValue("description"), r.FormValue("location_id"), domain.TemplateType(tt.ID), emptyTD, merged, labelIDs)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	if f, hdr, err := r.FormFile("photo"); err == nil {
@@ -279,14 +279,14 @@ func (s *Server) APIItemUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	add, err := service.ParseAdditionalFromForm(r)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	labelIDs := parseLabelIDs(r)
 	emptyTD := json.RawMessage(`{}`)
 	it2, err := s.Inventory.UpdateItem(ctx, id, r.FormValue("name"), r.FormValue("description"), r.FormValue("location_id"), tt, emptyTD, add, labelIDs)
 	if err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	if f, hdr, err := r.FormFile("photo"); err == nil {
@@ -314,7 +314,7 @@ func (s *Server) APIItemMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.Inventory.MoveItem(r.Context(), r.PathValue("id"), req.LocationID); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
@@ -323,7 +323,7 @@ func (s *Server) APIItemMove(w http.ResponseWriter, r *http.Request) {
 func (s *Server) APIItemDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if err := s.deleteItem(ctx, r.PathValue("id")); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/items"})
@@ -333,8 +333,12 @@ func (s *Server) APIItemDelete(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteItem(ctx context.Context, id string) error {
 	it, err := s.Items.GetByID(ctx, id)
 	if err == nil && it.PhotoPath != nil {
-		_ = os.Remove(filepath.Join(s.Config.DataDir, filepath.FromSlash(*it.PhotoPath)))
-		_ = os.Remove(service.ItemThumbnailPath(s.Config.DataDir, it.ID))
+		if p, perr := service.DataFile(s.Config.DataDir, "images", *it.PhotoPath); perr == nil {
+			_ = os.Remove(p)
+		}
+		if domain.ValidID(it.ID) {
+			_ = os.Remove(service.ItemThumbnailPath(s.Config.DataDir, it.ID))
+		}
 	}
 	if err := s.Inventory.DeleteItem(ctx, id); err != nil {
 		return err
@@ -412,7 +416,7 @@ func (s *Server) APILabelCreate(w http.ResponseWriter, r *http.Request) {
 		def = &rawTpl
 	}
 	if _, err := s.Inventory.CreateLabel(ctx, req.Name, req.Color, def); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/labels"})
@@ -448,7 +452,7 @@ func (s *Server) APILabelUpdate(w http.ResponseWriter, r *http.Request) {
 		def = &rawTpl
 	}
 	if _, err := s.Inventory.UpdateLabel(ctx, id, req.Name, req.Color, def); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/labels"})
@@ -458,7 +462,7 @@ func (s *Server) APILabelDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := r.PathValue("id")
 	if err := s.Inventory.DeleteLabel(ctx, id); err != nil {
-		s.writeJSONError(w, http.StatusBadRequest, err.Error())
+		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"next": "/labels"})

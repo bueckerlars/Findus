@@ -2,8 +2,10 @@ package service
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
+	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
 	"io"
@@ -19,6 +21,13 @@ const (
 	maxImageWidth = 1200
 	thumbSize     = 480 // largest square slot in the UI (~180 CSS px) on a high-DPI screen
 )
+
+const maxImagePixels = 50_000_000 // about 200 MB decoded
+
+var allowedImageFormats = map[string]bool{"jpeg": true, "png": true, "webp": true, "gif": true}
+
+// decodeSlots bounds how many uploads are decoded at once, and with that the memory they need.
+var decodeSlots = make(chan struct{}, 2)
 
 // ItemThumbnailPath is where the cached thumbnail of an item photo lives.
 // It is a subdirectory of images/, which backups skip: thumbnails can be regenerated.
@@ -69,7 +78,25 @@ func EnsureThumbnail(src, dst string) error {
 
 // EncodeWebPFromImage reads an image stream, resizes to max width, and encodes WebP.
 func EncodeWebPFromImage(r io.Reader) ([]byte, error) {
-	img, err := imaging.Decode(r, imaging.AutoOrientation(true))
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	// The imaging library also decodes TIFF and BMP; a crafted TIFF panics in one of its goroutines,
+	// which no recover can catch. Check the format and size before decoding.
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	if !allowedImageFormats[format] {
+		return nil, fmt.Errorf("unsupported image format %q (use JPEG, PNG, WebP or GIF)", format)
+	}
+	if int64(cfg.Width)*int64(cfg.Height) > maxImagePixels {
+		return nil, fmt.Errorf("image too large (max %d megapixels)", maxImagePixels/1_000_000)
+	}
+	decodeSlots <- struct{}{}
+	defer func() { <-decodeSlots }()
+	img, err := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
 	if err != nil {
 		return nil, err
 	}

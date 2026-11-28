@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"findus/backend/internal/domain"
+	"findus/backend/internal/service"
 	"findus/backend/internal/transport/http/middleware"
 )
 
@@ -141,7 +142,15 @@ func (s *Server) APIProfilePost(w http.ResponseWriter, r *http.Request) {
 		newPwd = r.FormValue("new_password")
 		removeAvatar = r.FormValue("remove_avatar") != ""
 	}
+	pwdKey := "password:" + u.ID
+	if !s.limits.allow(pwdKey, 10, 15*time.Minute) {
+		s.tooManyRequests(w)
+		return
+	}
 	u2, err := s.Auth.UpdateProfile(ctx, u.ID, username, email, curPwd, newPwd)
+	if !errors.Is(err, domain.ErrInvalidCurrentPassword) {
+		s.limits.refund(pwdKey)
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, domain.ErrInvalidCurrentPassword):
@@ -155,6 +164,19 @@ func (s *Server) APIProfilePost(w http.ResponseWriter, r *http.Request) {
 			s.writeJSONError(w, http.StatusInternalServerError, "Could not save profile.")
 		}
 		return
+	}
+	if strings.TrimSpace(newPwd) != "" {
+		// Every other session and the MCP token end with the old password; this browser stays signed in.
+		if s.MCP != nil {
+			if err := s.MCP.Delete(ctx, u.ID); err != nil {
+				s.writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+		}
+		if err := middleware.IssueSessionCookie(w, s.JWTSecret, u2, s.Config.CookieSecure); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 	rel := filepath.ToSlash(filepath.Join("images", "user-"+u.ID+".webp"))
 	if strings.HasPrefix(ct, "multipart/form-data") {
@@ -182,8 +204,9 @@ func (s *Server) APIProfilePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) removeUserAvatarFile(ctx context.Context, u2 *domain.User) {
-	p := filepath.Join(s.Config.DataDir, filepath.FromSlash(*u2.AvatarPath))
-	_ = os.Remove(p)
+	if p, err := service.DataFile(s.Config.DataDir, "images", *u2.AvatarPath); err == nil {
+		_ = os.Remove(p)
+	}
 	u2.AvatarPath = nil
 	u2.UpdatedAt = time.Now().UTC()
 	if err := s.Users.Update(ctx, u2); err != nil {

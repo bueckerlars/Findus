@@ -36,32 +36,3 @@ func TestCSRF_SkipsBodyParseWhenTokenInHeader(t *testing.T) {
 		t.Fatalf("handler body: got %q want %q", rr.Body.String(), body)
 	}
 }
-
-func TestParseRequestForCSRF_ParsesDeclaredURLEncoded(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, "/api/x", strings.NewReader("csrf_token=abc&a=1"))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	if err := parseRequestForCSRF(r); err != nil {
-		t.Fatal(err)
-	}
-	if r.FormValue("csrf_token") != "abc" {
-		t.Fatalf("form not parsed: %#v", r.Form)
-	}
-}
-
-func TestParseRequestForCSRF_DoesNotReadJSONContentType(t *testing.T) {
-	body := `{"a":1}`
-	r := httptest.NewRequest(http.MethodPost, "/api/x", strings.NewReader(body))
-	r.Header.Set("Content-Type", "application/json; charset=utf-8")
-
-	if err := parseRequestForCSRF(r); err != nil {
-		t.Fatal(err)
-	}
-	got, err := io.ReadAll(r.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != body {
-		t.Fatalf("got %q want %q", got, body)
-	}
-}
