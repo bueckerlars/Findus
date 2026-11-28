@@ -1,13 +1,14 @@
 import { reactive } from "vue";
 
 export type PendingCreate =
-  | { kind: "item"; locationId?: string }
+  | { kind: "item"; locationId?: string; qrToken?: string }
   | { kind: "location"; parentId?: string }
   | { kind: "label" };
 
 const state = reactive({
   itemOpen: false,
   itemInitialLocationId: undefined as string | undefined,
+  itemQrToken: undefined as string | undefined,
   locationOpen: false,
   locationInitialParentId: undefined as string | undefined,
   labelOpen: false,
@@ -21,8 +22,9 @@ export function useCreateModals() {
     state.labelOpen = false;
   }
 
-  function openCreateItem(opts?: { locationId?: string }) {
+  function openCreateItem(opts?: { locationId?: string; qrToken?: string }) {
     closeAll();
+    state.itemQrToken = opts?.qrToken;
     state.itemInitialLocationId = opts?.locationId;
     state.itemOpen = true;
   }

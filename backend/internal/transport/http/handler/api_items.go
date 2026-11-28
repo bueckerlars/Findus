@@ -117,7 +117,7 @@ func (s *Server) APIItemCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	labelIDs := parseLabelIDs(r)
 	emptyTD := json.RawMessage(`{}`)
-	it, err := s.Inventory.CreateItem(ctx, r.FormValue("name"), r.FormValue("description"), r.FormValue("location_id"), domain.TemplateType(tt.ID), emptyTD, merged, labelIDs)
+	it, err := s.Inventory.CreateItemFromQR(ctx, r.FormValue("qr_token"), r.FormValue("name"), r.FormValue("description"), r.FormValue("location_id"), domain.TemplateType(tt.ID), emptyTD, merged, labelIDs)
 	if err != nil {
 		s.writeJSONError(w, http.StatusBadRequest, err.Error())
 		return

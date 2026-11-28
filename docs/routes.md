@@ -89,7 +89,7 @@ All routes below require a valid session cookie. The Vue app calls these with `f
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/q/{token}` | Resolve a QR token — redirects to the matching location or item page |
+| `GET` | `/q/{token}` | Resolve a QR token — redirects to the matching location or item page; for a printed item label without an item, to `/items/new?qr={token}` to create it |
 | `GET` | `/items/{id}/photo` | Item photo (WebP image) |
 | `GET` | `/items/{id}/qr.png` | Item QR code as PNG |
 | `GET` | `/locations/{id}/qr.png` | Location QR code as PNG |

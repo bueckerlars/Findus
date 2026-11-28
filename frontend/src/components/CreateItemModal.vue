@@ -26,6 +26,7 @@ type ItemTemplate = { ID: string; DisplayName: string };
 const props = defineProps<{
   modelValue: boolean;
   initialLocationId?: string;
+  qrToken?: string;
 }>();
 
 const emit = defineEmits<{ "update:modelValue": [boolean] }>();
@@ -250,6 +251,9 @@ async function submit() {
   busy.value = true;
   const fd = new FormData();
   fd.append("name", name.value);
+  if (props.qrToken) {
+    fd.append("qr_token", props.qrToken);
+  }
   fd.append("description", description.value);
   fd.append("location_id", locationId.value);
   fd.append("template_type", templateType.value);

@@ -13,7 +13,7 @@ function applyPending() {
   const p = consumePending();
   if (!p) return;
   if (p.kind === "item") {
-    openCreateItem({ locationId: p.locationId });
+    openCreateItem({ locationId: p.locationId, qrToken: p.qrToken });
   } else if (p.kind === "location") {
     openCreateLocation({ parentId: p.parentId });
   } else {
@@ -29,6 +29,7 @@ watch(() => route.fullPath, applyPending);
   <CreateItemModal
     :model-value="createModalState.itemOpen"
     :initial-location-id="createModalState.itemInitialLocationId"
+    :qr-token="createModalState.itemQrToken"
     @update:model-value="createModalState.itemOpen = $event"
   />
   <CreateLocationModal
