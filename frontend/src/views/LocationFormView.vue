@@ -46,7 +46,10 @@ async function save() {
       parent_id: parentId.value,
     });
     toast.success(t("toast.locationSaved"));
-    await router.push(r.next);
+    // Return to where editing started; r.next covers direct loads and arrivals via login.
+    const from = window.history.state?.back;
+    if (typeof from === "string" && !from.startsWith("/login")) router.back();
+    else await router.push(r.next);
   } catch (e) {
     err.value = e instanceof Error ? e.message : t("common.saveFailed");
   }
