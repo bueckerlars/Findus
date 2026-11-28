@@ -12,7 +12,7 @@ Findus has a built-in [MCP](https://modelcontextprotocol.io) server at `<FINDUS_
 claude mcp add --transport http findus https://findus.example.com/mcp --header "X-API-Key: <token>"
 ```
 
-Other clients need the same URL and send the token in the `X-API-Key` header. Clients that only support OAuth are not supported. Cloud-hosted clients must be able to reach your instance. Use HTTPS for anything beyond localhost, because the token is sent with every request.
+Other clients need the same URL and send the token either in the `X-API-Key` header or as `Authorization: Bearer <token>`. Clients that only support OAuth are not supported. Cloud-hosted clients must be able to reach your instance. Use HTTPS for anything beyond localhost, because the token is sent with every request.
 
 ## Permissions
 

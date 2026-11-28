@@ -112,6 +112,12 @@ func TestMCPTogglesAndCRUD(t *testing.T) {
 	require.Equal(t, http.StatusOK, code, out)
 	token = out["token"].(string)
 
+	bearer := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
+	bearer.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, bearer)
+	require.Equal(t, http.StatusOK, rr.Code, "bearer token")
+
 	// A new token is read-only.
 	require.Contains(t, toolNames(), "search_items")
 	require.NotContains(t, toolNames(), "create_item")
