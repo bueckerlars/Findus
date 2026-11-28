@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, computed, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { shrinkPhoto } from "../utils/photo";
 import { api, patchJson, postJson } from "../api";
 import { useSession } from "../session";
 import LocationPicker from "../components/LocationPicker.vue";
@@ -259,7 +260,7 @@ async function saveItem() {
     fd.append(f.key, fieldValsEdit.value[f.key] ?? "");
   }
   if (photoFile.value) {
-    fd.append("photo", photoFile.value);
+    fd.append("photo", await shrinkPhoto(photoFile.value), photoFile.value.name);
   }
   try {
     await api<{ next: string }>("/api/items/" + id.value, { method: "POST", body: fd });

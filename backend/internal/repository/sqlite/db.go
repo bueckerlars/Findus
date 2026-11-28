@@ -21,7 +21,7 @@ func OpenDB(ctx context.Context, dataDir string) (*sql.DB, error) {
 		return nil, fmt.Errorf("mkdir item-attachments: %w", err)
 	}
 	dbPath := filepath.Join(dataDir, "findus.db")
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", dbPath)
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)", dbPath)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err

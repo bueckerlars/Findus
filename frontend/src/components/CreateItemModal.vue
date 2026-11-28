@@ -2,6 +2,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { shrinkPhoto } from "../utils/photo";
 import { api } from "../api";
 import { toast } from "../composables/useToast";
 import FxModal from "./FxModal.vue";
@@ -271,7 +272,7 @@ async function submit() {
     fd.append(f.key, fieldVals.value[f.key] ?? "");
   }
   if (photo.value) {
-    fd.append("photo", photo.value);
+    fd.append("photo", await shrinkPhoto(photo.value), photo.value.name);
   }
   try {
     const r = await api<{ next: string }>("/api/items", {

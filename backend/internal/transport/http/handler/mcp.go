@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"findus/backend/internal/transport/http/middleware"
 )
@@ -117,7 +118,11 @@ func (s *Server) MCPHandle(w http.ResponseWriter, r *http.Request) {
 			s.writeMCPError(w, req.ID, -32602, "unknown or disabled tool: "+p.Name)
 			return
 		}
+		start := time.Now()
 		result = s.runMCPTool(ctx, tools[i], scopes, p.Arguments)
+		if dur := time.Since(start); dur >= 2*time.Second {
+			s.Log.Info("mcp slow tool", "event", "mcp_slow_tool", "tool", p.Name, "duration_ms", dur.Milliseconds())
+		}
 	default:
 		s.writeMCPError(w, req.ID, -32601, "method not found")
 		return
